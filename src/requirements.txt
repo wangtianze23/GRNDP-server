@@ -1,0 +1,6 @@
+fastapi==0.112.2
+pydantic==2.8.2
+python==3.10.6
+uvicorn==0.20.0
+scipy==1.9.1
+matplotlib-base==3.5.2
