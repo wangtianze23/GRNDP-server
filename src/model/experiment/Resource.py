@@ -6,9 +6,9 @@ Created on Thu Sep 12 19:33:04 2024
 """
 
 from pydantic import BaseModel
-from model.optimization.Space import EdgeParameterSpace, TargetSpace
+from model.optimization.Space import RegulationParameterSpace, TargetSpace
 
 
 class ExperimentResource(BaseModel):
-    optimizationSpaceList: list[EdgeParameterSpace]
+    optimizationSpaceList: list[RegulationParameterSpace]
     optimizationTargetList: list[TargetSpace]

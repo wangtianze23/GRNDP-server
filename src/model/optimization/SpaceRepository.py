@@ -12,7 +12,7 @@ import os
 from infrastructure.database.StaticResource import BaseStaticResource
 from infrastructure.file.Metafile import BaseMetafile
 from model.optimization.Space import \
-    BaseModel, ParameterSpace, EdgeParameterSpace, TargetSpace
+    BaseModel, ParameterSpace, RegulationParameterSpace, TargetSpace
 
 
 class SpaceNotFoundException(Exception):
@@ -102,7 +102,7 @@ class BaseSpaceRepository:
         Parameters
         ----------
         ID : int
-            The identity of an edge parameter space.
+            The identity of an regulation parameter space.
         
         Raises
         ------
@@ -116,14 +116,14 @@ class BaseSpaceRepository:
         """
         raise NotImplementedError(BaseSpaceRepository.retrieveByID)
     
-class EdgeParameterSpaceRepository(BaseSpaceRepository):
+class RegulationParameterSpaceRepository(BaseSpaceRepository):
     """
-    The repository class for EdgeParameterSpace classes.
+    The repository class for RegulationParameterSpace classes.
     """
     mainFilename = 'parameter.csv'
     metaFilename = 'meta.txt'
     
-    def retrieveByID(self, ID: int) -> EdgeParameterSpace:
+    def retrieveByID(self, ID: int) -> RegulationParameterSpace:
         """
         Overrides BaseSpaceRepository.retrieveByID().
         """
@@ -136,13 +136,13 @@ class EdgeParameterSpaceRepository(BaseSpaceRepository):
         metaFile = BaseMetafile(os.path.join(dataDir, self.metaFilename))
         metaInformation = metaFile.get(['ID', 'name',
                                         'optimizationType', 'regulationType'])
-        space = EdgeParameterSpace(ID = metaInformation['ID'], 
-                                   name = metaInformation['name'], 
-                                   optimizationType = 
-                                   metaInformation['optimizationType'], 
-                                   regulationType = 
-                                   metaInformation['regulationType'],
-                                   parameterList = [])
+        space = RegulationParameterSpace(ID = metaInformation['ID'], 
+                                         name = metaInformation['name'], 
+                                         optimizationType = 
+                                         metaInformation['optimizationType'], 
+                                         regulationType = 
+                                         metaInformation['regulationType'],
+                                         parameterList = [])
         
         # Parse the parameter file
         parametersList = []

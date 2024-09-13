@@ -1,0 +1,144 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Sep 13 19:25:34 2024
+@author: Tz Wang <wangtianze23@mails.ucas.ac.cn>
+"""
+
+from model.network import Node, EdgeParameter
+from model.optimization.Space import RegulationParameterSpace, TargetSpace
+from model.optimization.Option import RegulationConstraint, TargetConstraint
+from model.optimization.Result import OptimizedRegulation, OptimizedTarget
+from model.optimization.Visualization import PathVisualization, VisualizedPath
+
+
+class OptimizationResult:
+    """
+    The container class for the result of network optimization.
+    """
+    def __init__(self, regulations: list[OptimizedRegulation], 
+                 targets: list[OptimizedTarget]):
+        """
+        Initialize an OptimizationResult object.
+
+        Parameters
+        ----------
+        regulations : list
+            A list of OptimizedRegulation objects containing the optimized 
+            regulations in a network.
+        targets : list
+            A list of OptimizedTarget objects containing the optimized 
+            targets of a network.
+
+        Returns
+        -------
+        None.
+        """
+        self.regulations = regulations
+        self.targets = targets
+
+class NetworkOptimizer:
+    """
+    The class for optimizing transcription networks.
+    """
+    def __init__(self, regulationSpaces: list[RegulationParameterSpace], 
+                 targetSpaces: list[TargetSpace]):
+        """
+        Initialize a NetworkOptimizer object.
+
+        Parameters
+        ----------
+        regulators : list
+            A list of RegulationParameterSpace object indicating 
+            the parameter space for all regulations in a network.
+        targets : list
+            A list of TargetSpace object indicating the target space for 
+            optimization.
+
+        Returns
+        -------
+        None.
+        """
+        self.regulationSpaces = regulationSpaces
+        self.targetSpaces = targetSpaces
+    
+    def optimizeWithSpaceAndTarget(self, 
+                                   nodeList: list[Node], 
+                                   edgeList: list[RegulationConstraint], 
+                                   targetList: list[TargetConstraint])\
+                                  -> OptimizationResult:
+        """
+        Optimize a network with given topology and targets.
+
+        Parameters
+        ----------
+        nodeList : list
+            A list of Node objects indicating all entities in the network.
+        edgeList : list
+            A list of RegulationConstraint object indicating the regulations 
+            among entities and the corresponding constraints on their 
+            parameters during optimization.
+        targetList : list
+            A list of TargetConstraint objects indicating the target functions 
+            to optimize.
+
+        Returns
+        -------
+        OptimizationResult
+            An OptimizationResult object containing the result of optimization.
+        """
+        optimizedRegulations = []
+        for edge in edgeList:
+            parameterSpace = None
+            for space in self.regulationSpaces:
+                if space.ID == edge.optimizationSpaceID and \
+                   space.regulationType == edge.regulationType:
+                    parameterSpace = space
+                    break
+            if parameterSpace is None:
+                continue
+            parameters = [EdgeParameter(index = X.index, 
+                                        name = X.name, 
+                                        value = X.min) 
+                          for X in space.parameterList]
+            optimizedRegulations.append(
+                        OptimizedRegulation(index = edge.index, 
+                                            ID = '', 
+                                            parameters = parameters))
+        
+        optimizedTargets = []
+        for target in targetList:
+            targetSpace = self.targetSpaces[target.index]
+            optimizedTargets.append(
+                        OptimizedTarget(index = target.index, 
+                                        name = targetSpace.name, 
+                                        description = targetSpace.description, 
+                                        nodeIndexes = target.nodeIndexes, 
+                                        value = 0))
+            
+        return OptimizationResult(optimizedRegulations, optimizedTargets)
+    
+    def visualize(self, nodeList: list[Node], 
+                  optimizationResult: OptimizationResult, 
+                  path: PathVisualization) -> VisualizedPath:
+        """
+        Visualize a specific path in a network after optimization.
+
+        Parameters
+        ----------
+        nodeList : list
+            A list of Node objects indicating all entities in the network.
+        optimizationResult : OptimizationResult
+            An OptimizationResult object containing the result of optimization.
+        path : PathVisualization
+            A PathVisualization object indicating the path to visualize.
+
+        Returns
+        -------
+        VisualizedPath
+            A VisualizedPath object containing the graphical representation 
+            of the specified path.
+        """
+        return VisualizedPath(sourceIndex = path.sourceIndex, 
+                              targetIndex = path.targetIndex, 
+                              image = 'data:image/png;base64')

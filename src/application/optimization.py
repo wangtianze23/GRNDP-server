@@ -9,11 +9,12 @@ Created on Fri Sep 13 12:42:26 2024
 
 from infrastructure.config.Service import BaseServiceConfig
 from infrastructure.database.StaticResource import RegulatorDB, TargetDB
-from model.optimization.SpaceRepository import \
-    EdgeParameterSpaceRepository, TargetSpaceRepository
 from model.experiment.Resource import ExperimentResource
 from model.experiment.Option import ExperimentOption
 from model.experiment.Result import ExperimentResult
+from model.optimization.SpaceRepository import \
+    RegulationParameterSpaceRepository, TargetSpaceRepository
+from model.optimization.Optimizer import NetworkOptimizer
 
 
 class NetworkOptimization:
@@ -49,14 +50,45 @@ class NetworkOptimization:
             An ExperimentResource object containing the resource for 
             launching a round of optimization.
         """
-        repository = EdgeParameterSpaceRepository(self.parameterDatabase)
-        edgeParameterSpaces = repository.retrieveAll()
+        repository = RegulationParameterSpaceRepository(self.parameterDatabase)
+        regulationParameterSpaces = repository.retrieveAll()
         
         repository = TargetSpaceRepository(self.targetDatabase)
         targetSpaces = repository.retrieveAll()
         
-        return ExperimentResource(optimizationSpaceList = edgeParameterSpaces, 
+        return ExperimentResource(optimizationSpaceList = 
+                                  regulationParameterSpaces, 
                                   optimizationTargetList = targetSpaces)
     
     def optimize(self, option: ExperimentOption) -> ExperimentResult:
-        return ExperimentResult()
+        """
+        Optimize a network with specified options.
+
+        Parameters
+        ----------
+        option : ExperimentOption
+            An ExperimentOption object containing the option for 
+            optimization.
+
+        Returns
+        -------
+        ExperimentResult
+            An ExperimentResult object containing the result from 
+            a round of optimization.
+        """
+        repository = RegulationParameterSpaceRepository(self.parameterDatabase)
+        regulationParameterSpaces = repository.retrieveAll()
+        
+        repository = TargetSpaceRepository(self.targetDatabase)
+        targetSpaces = repository.retrieveAll()
+        
+        optimizer = NetworkOptimizer(regulationParameterSpaces, targetSpaces)
+        result = \
+            optimizer.optimizeWithSpaceAndTarget(option.nodeList, 
+                                                 option.edgeList, 
+                                                 option.optimizationTargetList)
+        visualizedResult = [optimizer.visualize(option.nodeList, result, X) 
+                            for X in option.visualizedPathList]
+        return ExperimentResult(optimizedEdgeList = result.regulations, 
+                                optimizedTargetList = result.targets, 
+                                visualizedPathList = visualizedResult)

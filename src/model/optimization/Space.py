@@ -14,7 +14,7 @@ class ParameterSpace(BaseModel):
     min: float
     max: float
 
-class EdgeParameterSpace(BaseModel):
+class RegulationParameterSpace(BaseModel):
     ID: int
     name: str
     optimizationType: str

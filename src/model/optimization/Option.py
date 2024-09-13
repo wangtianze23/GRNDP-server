@@ -14,10 +14,10 @@ class ParameterConstraint(BaseModel):
     min: float
     max: float
 
-class EdgeConstraint(Edge):
+class RegulationConstraint(Edge):
     optimizationType: str
     optimizationSpaceID: int
-    optimizationConstraints: list[ParameterConstraint]
+    optimizationConstraints: list[ParameterConstraint] = []
 
 class TargetConstraint(BaseModel):
     index: int

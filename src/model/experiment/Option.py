@@ -8,13 +8,13 @@ Created on Thu Sep 12 19:33:04 2024
 from pydantic import BaseModel
 from model.network import Node
 from model.optimization.Option import \
-    EdgeConstraint, TargetConstraint, OptimizerOption
+    RegulationConstraint, TargetConstraint, OptimizerOption
 from model.optimization.Visualization import PathVisualization
 
 
 class ExperimentOption(BaseModel):
     nodeList: list[Node]
-    edgeList: list[EdgeConstraint]
+    edgeList: list[RegulationConstraint]
     optimizationTargetList: list[TargetConstraint]
     optimizationOption: OptimizerOption
-    visualizedPathList: list[PathVisualization]
+    visualizedPathList: list[PathVisualization] = []

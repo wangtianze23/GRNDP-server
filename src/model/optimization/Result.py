@@ -9,9 +9,9 @@ from pydantic import BaseModel
 from model.network import EdgeParameter
 
 
-class OptimizedEdge(BaseModel):
+class OptimizedRegulation(BaseModel):
     index: int
-    ID: int
+    ID: str
     parameters:list[EdgeParameter]
 
 class OptimizedTarget(BaseModel):
