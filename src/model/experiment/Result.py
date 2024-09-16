@@ -11,6 +11,8 @@ from model.optimization.Visualization import VisualizedPath
 
 
 class ExperimentResult(BaseModel):
+    message: str
+    processId: str
     optimizedEdgeList: list[OptimizedRegulation]
     optimizedTargetList: list[OptimizedTarget]
     visualizedPathList: list[VisualizedPath]

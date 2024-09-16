@@ -82,13 +82,19 @@ class NetworkOptimization:
         repository = TargetSpaceRepository(self.targetDatabase)
         targetSpaces = repository.retrieveAll()
         
+        # Run optimization
         optimizer = NetworkOptimizer(regulationParameterSpaces, targetSpaces)
         result = \
             optimizer.optimizeWithSpaceAndTarget(option.nodeList, 
                                                  option.edgeList, 
                                                  option.optimizationTargetList)
+        
+        # Visualize paths in the optimized network
         visualizedResult = [optimizer.visualize(option.nodeList, result, X) 
                             for X in option.visualizedPathList]
-        return ExperimentResult(optimizedEdgeList = result.regulations, 
+        
+        return ExperimentResult(message = result.message, 
+                                processId = option.processId, 
+                                optimizedEdgeList = result.regulations, 
                                 optimizedTargetList = result.targets, 
                                 visualizedPathList = visualizedResult)

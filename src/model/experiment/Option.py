@@ -13,6 +13,7 @@ from model.optimization.Visualization import PathVisualization
 
 
 class ExperimentOption(BaseModel):
+    processId: str
     nodeList: list[Node]
     edgeList: list[RegulationConstraint]
     optimizationTargetList: list[TargetConstraint]
