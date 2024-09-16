@@ -5,8 +5,11 @@ Created on Thu Sep 12 19:32:11 2024
 @author: Tz Wang <wangtianze23@mails.ucas.ac.cn>
 """
 
-import config
 from fastapi import FastAPI
+from fastapi.responses import Response
+import urllib.request
+import urllib.error
+import config
 from infrastructure.config.Service import BaseServiceConfig
 from application.optimization import NetworkOptimization
 from model.experiment.Resource import ExperimentResource
@@ -26,4 +29,13 @@ def getOption() -> ExperimentResource:
 def runExperiment(option: ExperimentOption) -> ExperimentResult:
     serviceConfig = BaseServiceConfig(config.LOCAL_RESOURCE_ROOT)
     service = NetworkOptimization(serviceConfig)
-    return service.optimize(option)
+    result = service.optimize(option)
+    if option.isAsynchronous():
+        try:
+            urllib.request.urlopen(config.EXPERIMENT_CALLBACK_URL, 
+                                   result.model_dump_json().encode('utf-8'))
+        except urllib.error.HTTPError:
+            pass
+        return Response()
+    else:
+        return result

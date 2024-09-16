@@ -14,3 +14,5 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 
 LOCAL_RESOURCE_ROOT = BASE_DIR / 'local'
+
+EXPERIMENT_CALLBACK_URL = 'http://api.bdainformatics.org/api/v1/grndp/callback'

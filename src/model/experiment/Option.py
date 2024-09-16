@@ -13,9 +13,12 @@ from model.optimization.Visualization import PathVisualization
 
 
 class ExperimentOption(BaseModel):
-    processId: str
+    processId: str = ''
     nodeList: list[Node]
     edgeList: list[RegulationConstraint]
     optimizationTargetList: list[TargetConstraint]
     optimizationOption: OptimizerOption
     visualizedPathList: list[PathVisualization] = []
+    
+    def isAsynchronous(self) -> bool:
+        return len(self.processId) > 0
