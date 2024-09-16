@@ -11,7 +11,7 @@ from infrastructure.config.Service import BaseServiceConfig
 from infrastructure.database.StaticResource import RegulatorDB, TargetDB
 from model.experiment.Resource import ExperimentResource
 from model.experiment.Option import ExperimentOption
-from model.experiment.Result import ExperimentResult
+from model.experiment.Result import ExperimentResult, ExperimentResultBody
 from model.optimization.SpaceRepository import \
     RegulationParameterSpaceRepository, TargetSpaceRepository
 from model.optimization.Optimizer import NetworkOptimizer
@@ -93,8 +93,10 @@ class NetworkOptimization:
         visualizedResult = [optimizer.visualize(option.nodeList, result, X) 
                             for X in option.visualizedPathList]
         
+        resultBody = \
+            ExperimentResultBody(optimizedEdgeList = result.regulations, 
+                                 optimizedTargetList = result.targets, 
+                                 visualizedPathList = visualizedResult)
         return ExperimentResult(message = result.message, 
                                 processId = option.processId, 
-                                optimizedEdgeList = result.regulations, 
-                                optimizedTargetList = result.targets, 
-                                visualizedPathList = visualizedResult)
+                                data = resultBody)
