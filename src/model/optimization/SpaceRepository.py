@@ -12,7 +12,7 @@ import os
 from infrastructure.database.StaticResource import BaseStaticResource
 from infrastructure.file.Metafile import BaseMetafile
 from model.optimization.Space import \
-    BaseModel, ParameterSpace, RegulationParameterSpace, TargetSpace
+    BaseSpace, ParameterSpace, RegulationParameterSpace, TargetSpace
 
 
 class SpaceNotFoundException(Exception):
@@ -84,7 +84,7 @@ class BaseSpaceRepository:
         """
         return self.database.exists(ID)
     
-    def retrieveAll(self) -> list[BaseModel]:
+    def retrieveAll(self) -> list[BaseSpace]:
         """
         Retrieve all spaces from the database
 
@@ -95,7 +95,7 @@ class BaseSpaceRepository:
         """
         return [self.retrieveByID(X) for X in self.database.idList()]
     
-    def retrieveByID(self, ID: int) -> BaseModel:
+    def retrieveByID(self, ID: int) -> BaseSpace:
         """
         Retrieve a BaseModel object with given ID from database
 
@@ -137,12 +137,11 @@ class RegulationParameterSpaceRepository(BaseSpaceRepository):
         metaInformation = metaFile.get(['ID', 'name',
                                         'optimizationType', 'regulationType'])
         space = RegulationParameterSpace(ID = metaInformation['ID'], 
-                                         name = metaInformation['name'], 
-                                         optimizationType = 
-                                         metaInformation['optimizationType'], 
                                          regulationType = 
                                          metaInformation['regulationType'],
-                                         parameterList = [])
+                                         name = metaInformation['name'], 
+                                         source = 
+                                         metaInformation['optimizationType'])
         
         # Parse the parameter file
         parametersList = []
@@ -160,12 +159,13 @@ class RegulationParameterSpaceRepository(BaseSpaceRepository):
         for i in range(1, parameterCount + 1):
             if i >= len(columnNames):
                 break
-            parameterSpace = ParameterSpace(index = i - 1, 
-                                            name = columnNames[i], 
-                                            min = min(float(X[i]) 
-                                                      for X in parametersList), 
-                                            max = max(float(X[i]) 
-                                                      for X in parametersList))
+            parameterSpace = ParameterSpace(name = columnNames[i], 
+                                            minValue = 
+                                            min(float(X[i]) 
+                                                for X in parametersList), 
+                                            maxValue = 
+                                            max(float(X[i]) 
+                                                for X in parametersList))
             space.parameterList.append(parameterSpace)
         return space
    
@@ -188,8 +188,8 @@ class TargetSpaceRepository(BaseSpaceRepository):
         metaFile = BaseMetafile(os.path.join(dataDir, self.metaFilename))
         metaInformation = metaFile.get(['ID', 'name',
                                         'description', 'nodeCount'])
-        space = TargetSpace(index = metaInformation['ID'], 
+        space = TargetSpace(ID = metaInformation['ID'], 
+                            variableCount = int(metaInformation['nodeCount']), 
                             name = metaInformation['name'], 
-                            description = metaInformation['description'], 
-                            nodeCount = int(metaInformation['nodeCount']))
+                            description = metaInformation['description'])
         return space

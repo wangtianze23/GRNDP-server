@@ -5,10 +5,11 @@ Created on Thu Sep 12 19:33:04 2024
 @author: Tz Wang <wangtianze23@mails.ucas.ac.cn>
 """
 
-from pydantic import BaseModel
-from model.optimization.Space import RegulationParameterSpace, TargetSpace
+from application.experiment.DTO.Resource import ExperimentResource
+from application.optimization.DTO.Space \
+    import RegulationParameterSpace, TargetSpace
 
 
-class ExperimentResource(BaseModel):
+class OptimizationResource(ExperimentResource):
     optimizationSpaceList: list[RegulationParameterSpace]
     optimizationTargetList: list[TargetSpace]

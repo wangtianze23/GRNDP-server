@@ -6,7 +6,9 @@ Created on Thu Sep 12 20:17:28 2024
 """
 
 from pydantic import BaseModel
-from model.network import Edge
+from application.experiment.DTO.Option import ExperimentOption
+from application.optimization.DTO.Network import Node, Edge
+from application.optimization.DTO.Visualization import PathVisualization
 
 
 class ParameterConstraint(BaseModel):
@@ -28,3 +30,10 @@ class OptimizerOption(BaseModel):
     useSeed: bool
     trajectoryCount: int
     maxIteration: int
+
+class OptimizationOption(ExperimentOption):
+    nodeList: list[Node]
+    edgeList: list[RegulationConstraint]
+    optimizationTargetList: list[TargetConstraint]
+    optimizationOption: OptimizerOption
+    visualizedPathList: list[PathVisualization] = []

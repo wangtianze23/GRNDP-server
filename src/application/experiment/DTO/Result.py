@@ -6,14 +6,10 @@ Created on Fri Sep 13 16:49:54 2024
 """
 
 from pydantic import BaseModel, field_serializer
-from model.optimization.Result import OptimizedRegulation, OptimizedTarget
-from model.optimization.Visualization import VisualizedPath
 
 
 class ExperimentResultBody(BaseModel):
-    optimizedEdgeList: list[OptimizedRegulation]
-    optimizedTargetList: list[OptimizedTarget]
-    visualizedPathList: list[VisualizedPath]
+    pass
 
 class ExperimentResult(BaseModel):
     message: str

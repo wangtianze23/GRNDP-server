@@ -11,22 +11,22 @@ import urllib.request
 import urllib.error
 import config
 from infrastructure.config.Service import BaseServiceConfig
-from application.optimization import NetworkOptimization
-from model.experiment.Resource import ExperimentResource
-from model.experiment.Option import ExperimentOption
-from model.experiment.Result import ExperimentResult
+from application.optimization.service.Network import NetworkOptimization
+from application.optimization.DTO.Resource import OptimizationResource
+from application.optimization.DTO.Option import OptimizationOption
+from application.optimization.DTO.Result import OptimizationResult
 
 
 app = FastAPI()
 
 @app.get("/option")
-def getOption() -> ExperimentResource:
+def getOption() -> OptimizationResource:
     serviceConfig = BaseServiceConfig(config.LOCAL_RESOURCE_ROOT)
     service = NetworkOptimization(serviceConfig)
     return service.getResource()
 
 @app.post("/experiment")
-def runExperiment(option: ExperimentOption) -> ExperimentResult:
+def runExperiment(option: OptimizationOption) -> OptimizationResult:
     serviceConfig = BaseServiceConfig(config.LOCAL_RESOURCE_ROOT)
     service = NetworkOptimization(serviceConfig)
     result = service.optimize(option)
