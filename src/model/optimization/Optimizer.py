@@ -5,10 +5,14 @@ Created on Fri Sep 13 19:25:34 2024
 @author: Tz Wang <wangtianze23@mails.ucas.ac.cn>
 """
 
+from model.evaluation.FunctionalFactory import BuiltinFunctionalFactory
 from model.optimization.Constraint import RegulationConstraint,TargetConstraint
-from model.optimization.Network import \
-    Node, Path, Parameter, OptimizedRegulation
-from model.optimization.NetworkRepresentation import PathRepresentation
+from model.optimization.Network import Node, OptimizedRegulation
+from model.optimization.NetworkOptimizer import AcyclicNetworkOptimizer
+from model.optimization.OptimizerException import \
+    NetworkTypeNotSupportedException, TargetTypeNotSupportedException
+from model.simulation.Network import AcyclicNetwork
+from model.simulation.NetworkFactory import BaseNetworkFactory,PairedRegulation
 
 
 class OptimizationResult:
@@ -123,42 +127,64 @@ class NetworkOptimizer:
         targetList : list
             A list of TargetConstraint objects indicating the target functions 
             to optimize.
+        
+        Raises
+        ------
+        NetworkTypeNotSupportedException
+            Raised when the network of specified topology is not supported.
+        TargetTypeNotSupportedException
+            Raised when the type of a specified target is not supported.
 
         Returns
         -------
         OptimizationResult
             An OptimizationResult object containing the result of optimization.
         """
-        optimizedRegulations = []
-        for edge in edgeList:
-            parameterSpace = edge.parameterSpace
-            ### TODO: Implement the optimization procedure ###
-            parameters = [Parameter(i, X.name, X.minValue) 
-                          for i, X in enumerate(parameterSpace.parameterList)]
-            optimizedRegulations.append(
-                        OptimizedRegulation(ID = '', parameters = parameters))
+        # Create a network of specified topologies
+        nodeCount = len(nodeList)
+        regulations = [PairedRegulation(edge.sourceIndex, edge.targetIndex, 
+                                        1 if edge.regulationType=='activation' 
+                                        else -1, 
+                                        edge.parameterSpace[0] 
+                                        if len(edge.parameterSpace) > 0 
+                                        else 
+                                        [0] * edge.parameterSpace.dimension)
+                       for edge in edgeList]
+        network, parameterMapping = \
+            BaseNetworkFactory.createFromPairedRegulations(nodeCount, 
+                                                           regulations)
+        if not isinstance(network, AcyclicNetwork):
+            raise NetworkTypeNotSupportedException('cyclic')
         
-        return OptimizationResult(optimizedRegulations, [0] * len(targetList))
-    
-    def visualize(self, nodeList: list[Node], 
-                  optimizationResult: OptimizationResult, 
-                  path: Path) -> PathRepresentation:
-        """
-        Visualize a specific path in a network after optimization.
-
-        Parameters
-        ----------
-        nodeList : list
-            A list of Node objects indicating all entities in the network.
-        optimizationResult : OptimizationResult
-            An OptimizationResult object containing the result of optimization.
-        path : Path
-            A Path object indicating the path to visualize.
-
-        Returns
-        -------
-        PathRepresentation
-            A PathRepresentation object containing the graphical 
-            representation of the specified path.
-        """
-        return PathRepresentation(path.sourceIndex, path.targetIndex, None)
+        # Check the validity of all targets
+        invalidTargets = [X for X in targetList 
+                          if len(X.nodeIndexes) != 2 or 
+                             len(X.space.builtin) == '' or 
+                             X.space.variableCount != 2]
+        if len(invalidTargets) > 0:
+            raise TargetTypeNotSupportedException(
+                                ','.join(X.space.name for X in invalidTargets))
+        
+        # Create wrapped target functions to optimize
+        paths = [network.getPath(X.nodeIndexes[0], X.nodeIndexes[1]) 
+                 for X in targetList]
+        pathFunctions = [lambda X: Y(X[0]) for Y in paths]
+        targetFunctionals = [BuiltinFunctionalFactory.
+                             createFromBuiltinName(X.space.builtin) 
+                             for X in targetList]
+        targetFunctions = [lambda: X(Y) 
+                           for X, Y in zip(targetFunctionals, pathFunctions)]
+        
+        # Optimize the network
+        optimizer = AcyclicNetworkOptimizer()
+        optimizer.setMaximumIteration(self.maxIteration)
+        optimizer.setSeed(self.seed)
+        optimizedRegulations = optimizer.optimize(network, edgeList, 
+                                                  parameterMapping, 
+                                                  targetFunctions)
+        
+        # Re-evaluate the optimized target functions
+        optimizedTargets = [X(Y) 
+                            for X, Y in zip(targetFunctionals, pathFunctions)]
+        
+        return OptimizationResult(optimizedRegulations, optimizedTargets)

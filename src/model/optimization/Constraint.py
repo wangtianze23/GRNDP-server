@@ -33,12 +33,24 @@ class ParameterConstraint:
         self.index = index
         self.minValue = minValue
         self.maxValue = maxValue
+    
+    def toTuple(self) -> tuple:
+        """
+        Get a tuple reprsentation of the constraint.
+
+        Returns
+        -------
+        tuple
+            A tuple of (float, float) representing the lower and upper 
+            boundary of the parameter.
+        """
+        return (self.minValue, self.maxValue)
 
 class RegulationConstraint(Edge):
     """
     The container class for constraints of regulations.
     """
-    def __init__(self, regulationType: str, sourceIndex: int, targetIndex: int, 
+    def __init__(self, sourceIndex: int, targetIndex: int, regulationType: str,
                  parameterSpace: RegulationParameterSpace, 
                  parameterConstraints = None):
         """
@@ -46,14 +58,14 @@ class RegulationConstraint(Edge):
 
         Parameters
         ----------
-        regulationType : str
-            A string representing the type of the regulation represented by 
-            the edge.
         sourceIndex : int
             An integer indicating the index of the source node connected by 
             the edge.
         targetIndex : int
             An integer indicating the index of the target node connected by 
+            the edge.
+        regulationType : str
+            A string representing the type of the regulation represented by 
             the edge.
         parameterSpace : RegulationParameterSpace
             A RegulationParameterSpace object representing the parameter space 
@@ -68,7 +80,7 @@ class RegulationConstraint(Edge):
         -------
         None.
         """
-        super().__init__(regulationType, sourceIndex, targetIndex)
+        super().__init__(sourceIndex, targetIndex, regulationType)
         self.parameterSpace = parameterSpace
         self.parameterConstraints = parameterConstraints or []
 

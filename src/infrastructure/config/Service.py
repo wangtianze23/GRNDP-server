@@ -9,6 +9,7 @@ Created on Fri Sep 13 12:37:14 2024
 
 import tempfile
 from infrastructure.config.Database import BaseDatabaseConfig
+from infrastructure.config.Plot import BasePlotConfig
 
 
 class BaseServiceConfig:
@@ -16,7 +17,7 @@ class BaseServiceConfig:
     The base class of service configuration.
     """
     def __init__(self, staticResourcePath = '../db/static', 
-                 temporaryResourcePath = ''):
+                 temporaryResourcePath = '', plotOptions = None):
         """
         Initialize a BaseServiceConfig object.
 
@@ -29,6 +30,11 @@ class BaseServiceConfig:
             Path to the directory to store temporary resources.
             The default is an empty string, i.e. using the default temporary 
             directory specified of the system.
+        plotOptions : dict or NoneType, optional
+            A dictionary containing strings pointing to arbitrary values that 
+            represent the general configuration parameters of plot services, 
+            or NoneType if the default settings shall be used.
+            The default is None.
 
         Returns
         -------
@@ -39,3 +45,9 @@ class BaseServiceConfig:
         if len(temporaryResourcePath) == 0:
             temporaryResourcePath = tempfile.gettempdir()
         self.temporaryResource = BaseDatabaseConfig(temporaryResourcePath)
+        
+        self.plotConfiguration = BasePlotConfig()
+        if type(plotOptions) is dict:
+            for name, value in plotOptions.items():
+                if name in dir(self.plotConfiguration):
+                    setattr(self.plotConfiguration, name, value)

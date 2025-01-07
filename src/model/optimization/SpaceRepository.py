@@ -7,12 +7,13 @@ Created on Fri Sep 13 12:54:19 2024
 @author: Tz Wang <wangtianze23@mails.ucas.ac.cn>
 """
 
-import csv
 import os
 from infrastructure.database.StaticResource import BaseStaticResource
 from infrastructure.file.Metafile import BaseMetafile
 from model.optimization.Space import \
-    BaseSpace, ParameterSpace, RegulationParameterSpace, TargetSpace
+    BaseSpace, RegulationParameterSpace, TargetSpace
+from model.optimization.SpaceFactory import \
+    DiscreteRegulationParameterSpaceFactory
 
 
 class SpaceNotFoundException(Exception):
@@ -128,7 +129,7 @@ class RegulationParameterSpaceRepository(BaseSpaceRepository):
         Overrides BaseSpaceRepository.retrieveByID().
         """
         if not self.exists(ID):
-            raise SpaceNotFoundException(ID)
+            raise SpaceNotFoundException(ID, 'regulation parameter')
         
         dataDir = self.database.dataDirectory(ID)
         
@@ -136,37 +137,19 @@ class RegulationParameterSpaceRepository(BaseSpaceRepository):
         metaFile = BaseMetafile(os.path.join(dataDir, self.metaFilename))
         metaInformation = metaFile.get(['ID', 'name',
                                         'optimizationType', 'regulationType'])
-        space = RegulationParameterSpace(ID = metaInformation['ID'], 
-                                         regulationType = 
-                                         metaInformation['regulationType'],
-                                         name = metaInformation['name'], 
-                                         source = 
-                                         metaInformation['optimizationType'])
         
-        # Parse the parameter file
-        parametersList = []
-        parameterFilename = os.path.join(dataDir, self.mainFilename)
-        with open(parameterFilename, 'r') as parameterFile:
-            data = csv.reader(parameterFile)
-            columnNames = next(data)
-            if 'ID' in columnNames:
-                parametersList = list(data)
-        
-        if len(parametersList) == 0:
-            return space
-        
-        parameterCount = len(parametersList[0]) - 1
-        for i in range(1, parameterCount + 1):
-            if i >= len(columnNames):
-                break
-            parameterSpace = ParameterSpace(name = columnNames[i], 
-                                            minValue = 
-                                            min(float(X[i]) 
-                                                for X in parametersList), 
-                                            maxValue = 
-                                            max(float(X[i]) 
-                                                for X in parametersList))
-            space.parameterList.append(parameterSpace)
+        if metaInformation['optimizationType'] == 'dataset':
+            parameterFilename = os.path.join(dataDir, self.mainFilename)
+            space = DiscreteRegulationParameterSpaceFactory.\
+                            createFromFile(parameterFilename, 
+                                           metaInformation['ID'], 
+                                           metaInformation['regulationType'])
+        else:
+            space = RegulationParameterSpace(
+                            ID = metaInformation['ID'], 
+                            regulationType = metaInformation['regulationType'],
+                            name = metaInformation['name'], 
+                            source = metaInformation['optimizationType'])
         return space
    
 class TargetSpaceRepository(BaseSpaceRepository):
@@ -180,16 +163,17 @@ class TargetSpaceRepository(BaseSpaceRepository):
         Overrides BaseSpaceRepository.retrieveByID().
         """
         if not self.exists(ID):
-            raise SpaceNotFoundException(ID)
+            raise SpaceNotFoundException(ID, 'optimization target')
         
         dataDir = self.database.dataDirectory(ID)
         
         # Parse the meta-file
         metaFile = BaseMetafile(os.path.join(dataDir, self.metaFilename))
-        metaInformation = metaFile.get(['ID', 'name',
+        metaInformation = metaFile.get(['ID', 'name', 'builtin', 
                                         'description', 'nodeCount'])
         space = TargetSpace(ID = metaInformation['ID'], 
                             variableCount = int(metaInformation['nodeCount']), 
                             name = metaInformation['name'], 
+                            builtin = metaInformation['builtin'], 
                             description = metaInformation['description'])
         return space

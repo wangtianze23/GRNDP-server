@@ -1,0 +1,408 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Jan  5 21:05:03 2025
+@author: Tz Wang <wangtianze23@mails.ucas.ac.cn>
+"""
+
+from collections import OrderedDict
+import math
+import scipy.optimize as Optimize
+from infrastructure.math.number import centroid, geometricMean, kNN
+from infrastructure.math.number import intersectRanges
+from model.optimization.Constraint import RegulationConstraint
+from model.optimization.Network import Parameter, OptimizedRegulation
+from model.optimization.OptimizerException import \
+    ParameterNotConvergedException
+from model.optimization.Space import DiscreteRegulationParameterSpace
+from model.simulation.Network import \
+    NetworkParameterIndex, ParameterMapping, AcyclicNetwork
+
+
+class AcyclicNetworkOptimizer:
+    """
+    The class for optimizing AcyclicNetwork objects.
+    """
+    def __init__(self):
+        """
+        Initialize a MixedNetworkOptimizer object.
+
+        Returns
+        -------
+        None.
+        """
+        self.seed = 0
+        self.maxIteration = 10
+        self.maxIteration2 = 20
+        self.stepSize = 1
+        self.neighbourCount = 5
+    
+    def setMaximumIteration(self, maxIteration = 100):
+        """
+        Set the number of iteration for optimization.
+
+        Parameters
+        ----------
+        maxIteration : int, optional
+            An integer indicating the maximum number of iteration. 
+            The default is 100.
+
+        Returns
+        -------
+        None.
+        """
+        self.maxIteration = maxIteration
+    
+    def setSeed(self, seed = None):
+        """
+        Set the seed for the random number generator (RNG) when generating 
+        sequences.
+
+        Parameters
+        ----------
+        seed : int or NoneType
+            An integer fed to the RNG, or None if no fixed seed is used.
+            The default is None.
+
+        Returns
+        -------
+        None.
+        """
+        self.seed = seed
+    
+    @staticmethod
+    def updateModel(model: AcyclicNetwork, parameters: list[float], 
+                    parameterIndexes: list[NetworkParameterIndex]):
+        """
+        Update the parameter of a model.
+
+        Parameters
+        ----------
+        model : AcyclicNetwork
+            An AcyclicNetwork object representing the network to optimize.
+        parameters: list[float]
+            A list of numeric values representing the network parameters to 
+            update.
+        parameterIndexes : list[NetworkParameterIndex]
+            A list of NetworkParameterIndex objects representing the index of 
+            parameters to update.
+
+        Returns
+        -------
+        None.
+        """
+        for index, parameter in zip(parameterIndexes, parameters):
+            if index.parameterIndex is not None:
+                model.updateRegulation(index, parameter)
+    
+    @staticmethod
+    def lossFunction(model: AcyclicNetwork, parameters: list[float], 
+                     parameterIndexes: list[NetworkParameterIndex], 
+                     targetFunctions: list[object]) -> float:
+        """
+        Calculate the optimization loss on a model and a list of targets.
+
+        Parameters
+        ----------
+        model : AcyclicNetwork
+            An AcyclicNetwork object representing the network to optimize.
+        parameters: list[float]
+            A list of numeric values representing the network parameters to 
+            update before evaluating the targets.
+        parameterIndexes : list[NetworkParameterIndex]
+            A list of NetworkParameterIndex objects representing the index of 
+            parameters in a network.
+        targetFunctions : list[object]
+            A list of callable objects (wrapped functions) to evaluate after 
+            the model has been updated.
+
+        Returns
+        -------
+        float
+            The optimization loss evaluated on the updated model.
+        """
+        if len(parameterIndexes) > 0:
+            AcyclicNetworkOptimizer.updateModel(model, 
+                                                parameters, parameterIndexes)
+        return math.prod(X() for X in targetFunctions)
+    
+    def optimizeOnce(self, model: AcyclicNetwork, 
+                     parameterIndexes: list[NetworkParameterIndex], 
+                     initialParameters: list[float], 
+                     parameterRanges: list[tuple], 
+                     targetFunctions: list[object]) -> tuple:
+        """
+        Run a round of global optimization (minimization) of a list of targets 
+        with respect to a given set of model parameters.
+
+        Parameters
+        ----------
+        model : AcyclicNetwork
+            An AcyclicNetwork object representing the network to optimize.
+        parameterIndexes : list[NetworkParameterIndex]
+            A list of NetworkParameterIndex objects representing the index of 
+            parameters in a network to optimize.
+        initialParameters : list[float]
+            A list of numeric values representing the intial guess for each 
+            parameter before optimization. The length of the list equals to 
+            the length of **parameterIndexes**.
+        parameterRanges : list[tuple]
+            A list of tuple of (float, float) representing the boundary for 
+            each parameter during optimization. The length of the list equals 
+            to the length of **parameterIndexes**.
+        targetFunctions : list[object]
+            A list of callable objects (wrapped functions) whose values shall 
+            be minimized.
+
+        Returns
+        -------
+        tuple
+            A tuple of the following items:
+                - A float value representing the optimization loss.
+                - A list of float values representing the optimized set of \
+                  model parameters. The length of the list equals to \
+                  the length of **parameterIndexes**.
+        """
+        if len(parameterIndexes) == 0:
+            return (self.lossFunction(model, [], [], targetFunctions), [])
+        
+        result = Optimize.basinhopping(lambda X: 
+                                       self.lossFunction(model, X, 
+                                                         parameterIndexes, 
+                                                         targetFunctions),
+                                       initialParameters, 
+                                       seed = self.seed, 
+                                       niter = self.maxIteration, 
+                                       stepsize = self.stepSize, 
+                                       disp = True, 
+                                       minimizer_kwargs = 
+                                       {'method': 'L-BFGS-B', 
+                                        'bounds': parameterRanges})
+        self.updateModel(model, result['x'], parameterIndexes)
+        return (result['fun'], result['x'].tolist())
+    
+    def optimizeClusters(self, model: AcyclicNetwork, 
+                         discreteParameterGroups: list[list[list]], 
+                         continuousParameterIndexes: 
+                             list[NetworkParameterIndex], 
+                         discreteParameterIndexes: 
+                             list[list[NetworkParameterIndex]], 
+                         initialContinuousParameters: list[float], 
+                         initialDiscreteParameters: list[list[float]],
+                         continuousParameterRanges: list[tuple], 
+                         discreteParameterRanges: list[list[tuple]], 
+                         targetFunctions: list[object]) -> tuple:
+        # Iteratively refine the centroid of discrete parameters
+        discreteParameters = initialDiscreteParameters
+        historicalParameters = []
+        historicalLoss = []
+        iteration = 0
+        while discreteParameters not in historicalParameters and \
+              iteration < self.maxIteration2:
+            iteration += 1
+            historicalParameters.append(discreteParameters.copy())
+            
+            # Find neighbours around the current group of parameters
+            clusters = [kNN(X, Y, self.neighbourCount) 
+                        for X, Y in 
+                            zip(discreteParameters, discreteParameterGroups)]
+            
+            # Run optimization once from the current group of parameters
+            initialDiscreteParameters = [centroid([X[i] for i in Y]) for X,Y in
+                                         zip(discreteParameterGroups,clusters)]
+            loss, optimizedParameters = \
+                self.optimizeOnce(model, 
+                                  [*continuousParameterIndexes, 
+                                   *(Y for X in discreteParameterIndexes 
+                                     for Y in X)], 
+                                  [*initialContinuousParameters, 
+                                   *(Y for X in initialDiscreteParameters 
+                                     for Y in X)],
+                                  [*continuousParameterRanges,  
+                                   *(Y for X in discreteParameterRanges 
+                                     for Y in X)], 
+                                  targetFunctions)
+            historicalLoss.append(loss)
+            print('  Iteration {}, loss {}; minimum loss {}'.
+                  format(iteration, loss, min(historicalLoss)))
+            
+            # Update with the optimized result
+            initialContinuousParameters = \
+                    optimizedParameters[:len(continuousParameterIndexes)]
+            discreteParameterIterator = \
+                iter(optimizedParameters[len(continuousParameterIndexes):])
+            for i, X in enumerate(discreteParameters):
+                discreteParameters[i] = [next(discreteParameterIterator) 
+                                         for i in range(0, len(X))]
+        
+        index = historicalLoss.index(min(historicalLoss))
+        return [kNN(X, Y, self.neighbourCount) for X, Y in 
+                zip(historicalParameters[index], discreteParameterGroups)]
+    
+    def optimize(self, model: AcyclicNetwork, 
+                 constraints: list[RegulationConstraint], 
+                 parameterMapping: list[ParameterMapping], 
+                 targetFunctions: list[object]) -> list[OptimizedRegulation]:
+        """
+        Optimize a model with a list of parameter constraints and targets.
+
+        Parameters
+        ----------
+        model : AcyclicNetwork
+            An AcyclicNetwork object representing the network to optimize.
+        constraints : list[RegulationConstraint]
+            A list of RegulationConstraint objects representing the space of 
+            network parameters to optimize with respect to the targets defined 
+            by **targetFunctions**.
+        parameterMapping : list[ParameterMapping]
+            A list of ParameterMapping objects representing the mapping of 
+            regulation parameters in **constraints** to the actual parameters 
+            in **model**. The length of the list equals to the length of 
+            **constraints**.
+        targetFunctions : list[object]
+            A list of callable objects (wrapped functions) whose values shall 
+            be minimized.
+
+        Returns
+        -------
+        list[OptimizedRegulation]
+            A list of OptimizedRegulation objects representing the optimized 
+            parameters. The length of the list equals to the length of 
+            **constraints**.
+        """
+        # Map parameters in the constraints to those in the network
+        continuousParameterMapping = OrderedDict()
+        discreteParameterMappings = [OrderedDict() 
+                                     for i in range(0, len(constraints))]
+        isDiscrete = [isinstance(constraint.parameterSpace, 
+                                 DiscreteRegulationParameterSpace) 
+                      for constraint in constraints]
+        for i, constraint in enumerate(constraints):
+            mapping = parameterMapping[i]
+            for j in range(0, constraint.parameterSpace.dimension):
+                if j in mapping:
+                    if isDiscrete[i]:
+                        discreteParameterMappings[i][j] = mapping[j]
+                    else:
+                        continuousParameterMapping[(i, j)] = mapping[j]
+        
+        # Determine the initial parameters and their ranges
+        initialContinuousParameters = \
+            [geometricMean(constraints[i].parameterSpace.boundaries[j]) 
+             for (i, j) in continuousParameterMapping.keys()]
+        continuousParameterRanges = \
+            [intersectRanges([constraints[i].parameterSpace.boundaries[j], 
+                              *(X.toTuple() 
+                                for X in constraints[i].parameterConstraints)]) 
+             for (i, j) in continuousParameterMapping.keys()]
+        discreteParameterGroups = [[X.parameterSpace.values[j] 
+                                    for j in Y.keys()] 
+                                   for X, Y in zip(constraints, 
+                                                   discreteParameterMappings)]
+        initialDiscreteParameters = [centroid(X) 
+                                     for X in discreteParameterGroups]
+        discreteParameterRanges = [[(min(Y[i] for Y in X),max(Y[i] for Y in X))
+                                    for i in range(0, len(X[0]))] if len(X) > 0
+                                   else []
+                                   for X in discreteParameterGroups]
+        
+        # Determine the discrete parameters group-by-group
+        continuousParameters = initialContinuousParameters
+        discreteParameters = initialDiscreteParameters
+        groupIndexes = [i for i, X in enumerate(discreteParameterMappings) 
+                        if len(X) > 0]
+        groupIndexes = sorted(groupIndexes, 
+                              key = lambda i:len(discreteParameterGroups[i]) / 
+                                             len(discreteParameterMappings[i]))
+        oldGroupIndexes = groupIndexes.copy()
+        while len(groupIndexes) > 0:
+            # Update the clusters around the current group of parameters
+            print('Optimizing discrete parameter clusters for groups {}...'.
+                  format(groupIndexes))
+            initialContinuousParameters = continuousParameters
+            discreteParameterClusters = \
+                self.optimizeClusters(model, 
+                                      [discreteParameterGroups[i] 
+                                       for i in groupIndexes], 
+                                      continuousParameterMapping.values(), 
+                                      [discreteParameterMappings[i].values()  
+                                       for i in groupIndexes], 
+                                      initialContinuousParameters, 
+                                      [discreteParameters[i] 
+                                       for i in groupIndexes], 
+                                      continuousParameterRanges, 
+                                      [discreteParameterRanges[i] 
+                                       for i in groupIndexes], 
+                                      targetFunctions)
+            
+            # Pick a discrete parameter group to optimize
+            oldLoss = math.inf
+            clusterIndex = None
+            i = groupIndexes.pop(0)
+            clusterIndexes = discreteParameterClusters.pop(0)
+            print('Optimizing the parameter group {}:'.format(i))
+            for j in clusterIndexes:
+                self.updateModel(model, discreteParameterGroups[i][j], 
+                                 discreteParameterMappings[i].values())
+                loss, optimizedParameters = \
+                    self.optimizeOnce(model, 
+                                      continuousParameterMapping.values(),
+                                      initialContinuousParameters, 
+                                      continuousParameterRanges, 
+                                      targetFunctions)
+                print('  Loss {} with parameter {}'.
+                      format(loss, discreteParameterGroups[i][j]))
+                if loss < oldLoss:
+                    continuousParameters = optimizedParameters
+                    clusterIndex = j
+                    oldLoss = loss
+            if clusterIndex is not None:
+                print('  Best parameter found for group {} with loss {}.'.
+                      format(i, oldLoss))
+                discreteParameters[i] = \
+                    discreteParameterGroups[i][clusterIndex]
+                oldGroupIndexes = groupIndexes.copy()
+            else:
+                print('  Optimization failed for group {}.'.format(i))
+                groupIndexes.append(i)
+                discreteParameterClusters.append(clusterIndexes)
+                if groupIndexes == oldGroupIndexes:
+                    raise ParameterNotConvergedException()
+            self.updateModel(model, continuousParameters, 
+                             continuousParameterMapping.values())
+            self.updateModel(model, discreteParameters[i], 
+                             discreteParameterMappings[i].values())
+        
+        regulations = []
+        for i, constraint in enumerate(constraints):
+            if isDiscrete[i]:
+                parameters = [None if X is None else model.getParameter(X) 
+                              for X in discreteParameterMappings[i].values()]
+                matchedIndexes = [j for j, X in 
+                                  enumerate(constraint.parameterSpace.values) 
+                                  if all(Y for Y, Z in zip(X, parameters)
+                                         if Z is not None)]
+                j = matchedIndexes[0]
+                ID = constraint.parameterSpace.valueIDs[j]
+                parameters = [Parameter(index = k, 
+                                        name = constraint.parameterSpace.
+                                               dimensionNames[k], 
+                                        value = constraint.parameterSpace.
+                                                values[j][k] if X is None 
+                                                else X) 
+                              for k, X in enumerate(parameters)]
+            else:
+                parameters = [Parameter(index = k, 
+                                        name = constraint.parameterSpace.
+                                               dimensionNames[k], 
+                                        value = constraint.parameterSpace.
+                                                boundaries[k][0] if X is None 
+                                                else model.getParameter(X)) 
+                              for (j, k), X in 
+                                  continuousParameterMapping.items() if i == j]
+                ID = ''
+            regulations.append(OptimizedRegulation(constraint.sourceIndex, 
+                                                   constraint.targetIndex,
+                                                   constraint.regulationType, 
+                                                   parameters, ID))
+        return regulations

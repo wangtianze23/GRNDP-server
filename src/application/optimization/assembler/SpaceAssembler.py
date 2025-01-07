@@ -12,22 +12,18 @@ from application.optimization.DTO.Space import \
 import model.optimization.Space
 
 
-class ParameterSpaceAssembler:
-    @staticmethod
-    def createFromModel(model: model.optimization.Space.ParameterSpace,
-                        index: int) -> ParameterSpace:
-        return ParameterSpace(index = index, name = model.name, 
-                              min = model.minValue, max = model.maxValue)
-
 class RegulationParameterSpaceAssembler:
     @staticmethod
     def createFromModel(model: model.optimization.Space.
                                RegulationParameterSpace) \
                        -> RegulationParameterSpace:
         parameterList = []
-        for i, parameter in enumerate(model.parameterList):
+        for i in range(model.dimension):
             parameterList.append(
-                        ParameterSpaceAssembler.createFromModel(parameter, i))
+                        ParameterSpace(index = i, 
+                                       name = model.dimensionNames[i], 
+                                       min = model.boundaries[i][0], 
+                                       max = model.boundaries[i][1]))
         result = RegulationParameterSpace(ID = model.ID, 
                                           name = model.name, 
                                           optimizationType = model.source, 

@@ -17,7 +17,7 @@ class Node:
         Parameters
         ----------
         index : int
-            An integer indicating the index of the parameter.
+            An integer indicating the index of the node.
         name : str
             The name of the node.
         entityType : str
@@ -60,21 +60,20 @@ class Edge(Path):
     """
     The container class for edges in a network.
     """
-    def __init__(self, regulationType: str, 
-                 sourceIndex: int, targetIndex: int):
+    def __init__(self, sourceIndex: int, targetIndex: int, regulationType:str):
         """
         Initialize an Edge object.
 
         Parameters
         ----------
-        regulationType : str
-            A string representing the type of the regulation represented by 
-            the edge.
         sourceIndex : int
             An integer indicating the index of the source node connected by 
             the edge.
         targetIndex : int
             An integer indicating the index of the target node connected by 
+            the edge.
+        regulationType : str
+            A string representing the type of the regulation represented by 
             the edge.
 
         Returns
@@ -109,18 +108,26 @@ class Parameter:
         self.name = name
         self.value = value
 
-class OptimizedRegulation:
+class Regulation(Edge):
     """
-    The container class for optimized parameters of an edge in a network.
+    The container class for parameters of an edge in a network.
     """
-    def __init__(self, ID: str, parameters: list[Parameter]):
+    def __init__(self, sourceIndex: int, targetIndex: int, regulationType: str,
+                 parameters: list[Parameter]):
         """
-        Initialize an OptimizedRegulation object.
+        Initialize a Regulation object.
 
         Parameters
         ----------
-        ID : str
-            A string representing the identity of the parameter set.
+        sourceIndex : int
+            An integer indicating the index of the source node connected by 
+            the edge.
+        targetIndex : int
+            An integer indicating the index of the target node connected by 
+            the edge.
+        regulationType : str
+            A string representing the type of the regulation represented by 
+            the edge.
         parameters : list[Parameter]
             A list of Parameter object representing the parameters associated 
             with the regulation.
@@ -129,5 +136,38 @@ class OptimizedRegulation:
         -------
         None.
         """
-        self.ID = ID
+        super().__init__(sourceIndex, targetIndex, regulationType)
         self.parameters = parameters
+
+class OptimizedRegulation(Regulation):
+    """
+    The container class for optimized parameters of an edge in a network.
+    """
+    def __init__(self, sourceIndex: int, targetIndex: int, regulationType: str,
+                 parameters: list[Parameter], ID: str):
+        """
+        Initialize an OptimizedRegulation object.
+
+        Parameters
+        ----------
+        regulationType : str
+            A string representing the type of the regulation represented by 
+            the edge.
+        sourceIndex : int
+            An integer indicating the index of the source node connected by 
+            the edge.
+        targetIndex : int
+            An integer indicating the index of the target node connected by 
+            the edge.
+        parameters : list[Parameter]
+            A list of Parameter object representing the parameters associated 
+            with the regulation.
+        ID : str
+            A string representing the identity of the parameter set.
+
+        Returns
+        -------
+        None.
+        """
+        super().__init__(sourceIndex, targetIndex, regulationType, parameters)
+        self.ID = ID

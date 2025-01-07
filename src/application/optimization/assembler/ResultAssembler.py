@@ -7,12 +7,14 @@ Created on Sat Jan  4 22:03:15 2025
 @author: Tz Wang <wangtianze23@mails.ucas.ac.cn>
 """
 
+from base64 import b64encode
+import tempfile
+from matplotlib.figure import Figure
 from application.optimization.DTO.Network import EdgeParameter
 from application.optimization.DTO.Result import \
     OptimizedRegulation, OptimizedTarget, VisualizedPath
 import model.optimization.Network
 from model.optimization.Constraint import TargetConstraint
-from model.optimization.NetworkRepresentation import PathRepresentation
 
 
 class OptimizedRegulationAssembler:
@@ -36,8 +38,20 @@ class OptimizedTargetAssembler:
 
 class VisualizedPathAssembler:
     @staticmethod
-    def createFromRepresentation(representation: PathRepresentation) \
-                                -> VisualizedPath:
-        return VisualizedPath(sourceIndex = representation.sourceIndex, 
-                              targetIndex = representation.targetIndex, 
-                              image = representation.toBase64())
+    def figureToBase64(figure: Figure) -> str:
+        encodedImage = ''
+        if figure is not None:
+            with tempfile.NamedTemporaryFile('rb') as tempFile:
+                figure.savefig(tempFile.name, format = 'png')
+                encodedImage = b64encode(tempFile.read()).decode('utf-8')
+                tempFile.close()
+        return encodedImage
+
+    @staticmethod
+    def createFromFigure(figure: Figure, 
+                         path: model.optimization.Network.Path) \
+                        -> VisualizedPath:
+        return VisualizedPath(sourceIndex = path.sourceIndex, 
+                              targetIndex = path.targetIndex, 
+                              image = 
+                              VisualizedPathAssembler.figureToBase64(figure))

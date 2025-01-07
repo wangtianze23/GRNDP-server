@@ -18,10 +18,13 @@ from application.optimization.DTO.Result import \
     OptimizationResult, OptimizationResultBody
 from infrastructure.config.Service import BaseServiceConfig
 from infrastructure.database.StaticResource import RegulatorDB, TargetDB
+from infrastructure.plot.StaticPlot import BaseStaticPlot
 from model.optimization.Constraint import \
     ParameterConstraint, RegulationConstraint, TargetConstraint
 from model.optimization.Network import Node
+from model.optimization.NetworkRepresentation import PathRepresentation
 from model.optimization.Optimizer import NetworkOptimizer
+from model.optimization.OptimizerException import OptimizationFailedException
 from model.optimization.SpaceRepository import \
     RegulationParameterSpaceRepository, TargetSpaceRepository
 
@@ -48,6 +51,7 @@ class NetworkOptimization:
         """
         self.parameterDatabase = RegulatorDB(config.staticResource)
         self.targetDatabase = TargetDB(config.staticResource)
+        self.canvas = BaseStaticPlot(config.plotConfiguration)
     
     def getResource(self) -> OptimizationResource:
         """
@@ -91,8 +95,8 @@ class NetworkOptimization:
         
         repository = RegulationParameterSpaceRepository(self.parameterDatabase)
         parameterSpaces = \
-            [RegulationConstraint(edge.regulationType, 
-                                  edge.sourceIndex, edge.targetIndex, 
+            [RegulationConstraint(edge.sourceIndex, edge.targetIndex, 
+                                  edge.regulationType, 
                                   repository.retrieveByID(edge.
                                                           optimizationSpaceID), 
                                   [ParameterConstraint(X.index, X.min, X.max) 
@@ -112,11 +116,22 @@ class NetworkOptimization:
         optimizer.setTrajectoryCount(option.optimizationOption.trajectoryCount)
         
         # Run optimization
-        result = optimizer.optimizeWithSpaceAndTarget(nodes, parameterSpaces, 
-                                                      targetSpaces)
+        try:
+            result = optimizer.optimizeWithSpaceAndTarget(nodes, 
+                                                          parameterSpaces, 
+                                                          targetSpaces)
+        except OptimizationFailedException as e:
+            return OptimizationResult(
+                    message = 'Optimization failed due to "{}"'.format(str(e)),
+                    processId = option.processId, 
+                    data = OptimizationResultBody(optimizedEdgeList = [],
+                                                  optimizedTargetList = [], 
+                                                  visualizedPathList = []))
         
         # Visualize paths in the optimized network
-        visualizedResult = [optimizer.visualize(option.nodeList, result, X) 
+        representator = PathRepresentation(self.canvas)
+        visualizedResult = [representator.response(option.nodeList, 
+                                                   result.regulations, X) 
                             for X in option.visualizedPathList]
         
         # Assemble the optimization result
@@ -129,8 +144,9 @@ class NetworkOptimization:
                          createFromConstraint(targetSpaces[i], i, X) 
                          for i, X in enumerate(result.targets)], 
                         visualizedPathList = 
-                        [VisualizedPathAssembler.createFromRepresentation(X) 
-                         for X in visualizedResult])
+                        [VisualizedPathAssembler.createFromFigure(X, Y) 
+                         for X, Y in zip(visualizedResult, 
+                                         option.visualizedPathList)])
         return OptimizationResult(message = result.message, 
                                 processId = option.processId, 
                                 data = resultBody)
