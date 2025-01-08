@@ -6,7 +6,7 @@ Created on Mon Jan  6 14:44:22 2025
 """
 
 import csv
-from model.optimization.Space import DiscreteRegulationParameterSpace
+from model.optimization.ParameterSpace import DiscreteRegulationParameterSpace
 
 
 class DiscreteRegulationParameterSpaceFactory:

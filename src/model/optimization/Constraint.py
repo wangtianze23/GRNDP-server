@@ -6,7 +6,8 @@ Created on Sat Jan  4 19:30:38 2025
 """
 
 from model.optimization.Network import Edge
-from model.optimization.Space import RegulationParameterSpace, TargetSpace
+from model.optimization.ParameterSpace import RegulationParameterSpace
+from model.optimization.Target import BaseTarget
 
 
 class ParameterConstraint:
@@ -88,7 +89,7 @@ class TargetConstraint:
     """
     The container class for constraints of targets.
     """
-    def __init__(self, nodeIndexes: list[int], space: TargetSpace):
+    def __init__(self, nodeIndexes: list[int], space: BaseTarget):
         """
         Initialize a TargetConstraint object.
 

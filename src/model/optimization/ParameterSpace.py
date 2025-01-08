@@ -8,26 +8,7 @@ Created on Sat Jan  4 16:53:54 2025
 import math
 
 
-class BaseSpace:
-    """
-    The base class for optimization space classes.
-    """
-    def __init__(self, name = ''):
-        """
-        Initialize a BaseSpace object.
-
-        Parameters
-        ----------
-        name : str, optional
-            The name of the space. The default is an empty string.
-        
-        Returns
-        -------
-        None.
-        """
-        self.name = name
-
-class ParameterSpace(BaseSpace):
+class ParameterSpace:
     """
     The base class for parameter space classes.
     """
@@ -48,7 +29,7 @@ class ParameterSpace(BaseSpace):
         -------
         None.
         """
-        super().__init__(name)
+        self.name = name
         self.dimension = dimension
 
 class DiscreteSpace:
@@ -222,39 +203,3 @@ class DiscreteRegulationParameterSpace(DiscreteSpace,RegulationParameterSpace):
         if self.values is None:
             raise ValueError('no values defined in the space')
         return len(self.values)
-
-class TargetSpace(BaseSpace):
-    """
-    The base class for optimization target classes.
-    """
-    def __init__(self, ID: int, variableCount: int, name = '', builtin = '', 
-                 description = ''):
-        """
-        Initialize a TargetSpace object.
-
-        Parameters
-        ----------
-        ID : int
-            A integer representing the identity of the space.
-        variableCount : int
-            The number of variables of the function object.
-        name : str
-            The name of the target. 
-            The default is an empty string.
-        builtin : str, optional
-            A string representing the internal name of the target if it is 
-            a built-in target.
-            The default is an empty string, i.e. the target is not built-in.
-        descrption : str, optional
-            A string representing the description of the target. 
-            The default is an empty string.
-
-        Returns
-        -------
-        None.
-        """
-        super().__init__(name)
-        self.ID = ID
-        self.builtin = builtin
-        self.variableCount = variableCount
-        self.description = description

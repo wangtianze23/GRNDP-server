@@ -25,8 +25,9 @@ from model.optimization.Network import Node
 from model.optimization.NetworkRepresentation import PathRepresentation
 from model.optimization.Optimizer import NetworkOptimizer
 from model.optimization.OptimizerException import OptimizationFailedException
-from model.optimization.SpaceRepository import \
-    RegulationParameterSpaceRepository, TargetSpaceRepository
+from model.optimization.ParameterSpaceRepository import \
+    RegulationParameterSpaceRepository
+from model.optimization.TargetRepository import BaseTargetRepository
 
 
 class NetworkOptimization:
@@ -67,7 +68,7 @@ class NetworkOptimization:
         parameterSpaces = [RegulationParameterSpaceAssembler.createFromModel(X)
                            for X in repository.retrieveAll()]
         
-        repository = TargetSpaceRepository(self.targetDatabase)
+        repository = BaseTargetRepository(self.targetDatabase)
         targetSpaces = [TargetSpaceAssembler.createFromModel(X) 
                         for X in repository.retrieveAll()]
         
@@ -103,7 +104,7 @@ class NetworkOptimization:
                                    for X in edge.optimizationConstraints]) 
              for edge in option.edgeList]
         
-        repository = TargetSpaceRepository(self.targetDatabase)
+        repository = BaseTargetRepository(self.targetDatabase)
         targetSpaces = [TargetConstraint(target.nodeIndexes, 
                                          repository.retrieveByID(target.index)) 
                         for target in option.optimizationTargetList]

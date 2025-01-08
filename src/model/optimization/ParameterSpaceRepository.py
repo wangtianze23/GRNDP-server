@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Repository classes for the optimization space classes.
+Repository classes for the optimization parameter space classes.
 
 Created on Fri Sep 13 12:54:19 2024
 @author: Tz Wang <wangtianze23@mails.ucas.ac.cn>
@@ -10,15 +10,14 @@ Created on Fri Sep 13 12:54:19 2024
 import os
 from infrastructure.database.StaticResource import BaseStaticResource
 from infrastructure.file.Metafile import BaseMetafile
-from model.optimization.Space import \
-    BaseSpace, RegulationParameterSpace, TargetSpace
-from model.optimization.SpaceFactory import \
+from model.optimization.ParameterSpace import RegulationParameterSpace
+from model.optimization.ParameterSpaceFactory import \
     DiscreteRegulationParameterSpaceFactory
 
 
 class SpaceNotFoundException(Exception):
     """
-    The exception class for not finding the specified optimization space.
+    The exception class for not finding the specified parameter space.
     """
     def __init__(self, spaceID: int, databaseName = ''):
         """
@@ -50,18 +49,21 @@ class SpaceNotFoundException(Exception):
         return 'The optimization space of ID {} was not found '\
                'in the {} database.'.format(self.actual, self.reference)
 
-class BaseSpaceRepository:
+class RegulationParameterSpaceRepository:
     """
-    The base repository class for parameter space classes.
+    The repository class for RegulationParameterSpace classes.
     """
+    mainFilename = 'parameter.csv'
+    metaFilename = 'meta.txt'
+    
     def __init__(self, database: BaseStaticResource):
         """
-        Initialize a BaseSpaceRepository object.
+        Initialize a RegulationParameterSpaceRepository object.
 
         Parameters
         ----------
         database : BaseStaticResource
-            An object of sub-class of BaseStaticResource containing datasets.
+            An object of sub-class of BaseStaticResource containing spaces.
 
         Returns
         -------
@@ -71,21 +73,21 @@ class BaseSpaceRepository:
     
     def exists(self, ID: str) -> bool:
         """
-        Determine if a dataset of given ID already exists in the database
+        Determine if a space of given ID already exists in the database
         
         Parameters
         ----------
         ID : str
-            The ID of the dataset to search.
+            The ID of the space to search.
         
         Returns
         -------
         bool
-            Whether the specified dataset exists.
+            Whether the specified space exists.
         """
         return self.database.exists(ID)
     
-    def retrieveAll(self) -> list[BaseSpace]:
+    def retrieveAll(self) -> list[RegulationParameterSpace]:
         """
         Retrieve all spaces from the database
 
@@ -96,14 +98,14 @@ class BaseSpaceRepository:
         """
         return [self.retrieveByID(X) for X in self.database.idList()]
     
-    def retrieveByID(self, ID: int) -> BaseSpace:
+    def retrieveByID(self, ID: int) -> RegulationParameterSpace:
         """
-        Retrieve a BaseModel object with given ID from database
+        Retrieve a regulation parameter space with given ID from database
 
         Parameters
         ----------
         ID : int
-            The identity of an regulation parameter space.
+            The identity of a regulation parameter space.
         
         Raises
         ------
@@ -112,21 +114,9 @@ class BaseSpaceRepository:
 
         Returns
         -------
-        BaseModel
-            A BaseModel containing the parameter space for optimization.
-        """
-        raise NotImplementedError(BaseSpaceRepository.retrieveByID)
-    
-class RegulationParameterSpaceRepository(BaseSpaceRepository):
-    """
-    The repository class for RegulationParameterSpace classes.
-    """
-    mainFilename = 'parameter.csv'
-    metaFilename = 'meta.txt'
-    
-    def retrieveByID(self, ID: int) -> RegulationParameterSpace:
-        """
-        Overrides BaseSpaceRepository.retrieveByID().
+        RegulationParameterSpace
+            A RegulationParameterSpace object containing the parameter space 
+            for optimization.
         """
         if not self.exists(ID):
             raise SpaceNotFoundException(ID, 'regulation parameter')
@@ -150,30 +140,4 @@ class RegulationParameterSpaceRepository(BaseSpaceRepository):
                             regulationType = metaInformation['regulationType'],
                             name = metaInformation['name'], 
                             source = metaInformation['optimizationType'])
-        return space
-   
-class TargetSpaceRepository(BaseSpaceRepository):
-    """
-    The repository class for TargetSpace classes.
-    """
-    metaFilename = 'meta.txt'
-    
-    def retrieveByID(self, ID: int) -> TargetSpace:
-        """
-        Overrides BaseSpaceRepository.retrieveByID().
-        """
-        if not self.exists(ID):
-            raise SpaceNotFoundException(ID, 'optimization target')
-        
-        dataDir = self.database.dataDirectory(ID)
-        
-        # Parse the meta-file
-        metaFile = BaseMetafile(os.path.join(dataDir, self.metaFilename))
-        metaInformation = metaFile.get(['ID', 'name', 'builtin', 
-                                        'description', 'nodeCount'])
-        space = TargetSpace(ID = metaInformation['ID'], 
-                            variableCount = int(metaInformation['nodeCount']), 
-                            name = metaInformation['name'], 
-                            builtin = metaInformation['builtin'], 
-                            description = metaInformation['description'])
         return space

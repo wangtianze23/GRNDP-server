@@ -14,7 +14,7 @@ from model.optimization.Constraint import RegulationConstraint
 from model.optimization.Network import Parameter, OptimizedRegulation
 from model.optimization.OptimizerException import \
     ParameterNotConvergedException
-from model.optimization.Space import DiscreteRegulationParameterSpace
+from model.optimization.ParameterSpace import DiscreteRegulationParameterSpace
 from model.simulation.Network import \
     NetworkParameterIndex, ParameterMapping, AcyclicNetwork
 

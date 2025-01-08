@@ -9,13 +9,14 @@ Created on Sat Jan  4 18:12:10 2025
 
 from application.optimization.DTO.Space import \
     ParameterSpace, RegulationParameterSpace, TargetSpace
-import model.optimization.Space
+from model.optimization.Target import BaseTarget
+from model.optimization.ParameterSpace import \
+    RegulationParameterSpace as RegulationParameterSpaceModel
 
 
 class RegulationParameterSpaceAssembler:
     @staticmethod
-    def createFromModel(model: model.optimization.Space.
-                               RegulationParameterSpace) \
+    def createFromModel(model: RegulationParameterSpaceModel) \
                        -> RegulationParameterSpace:
         parameterList = []
         for i in range(model.dimension):
@@ -33,8 +34,7 @@ class RegulationParameterSpaceAssembler:
 
 class TargetSpaceAssembler:
     @staticmethod
-    def createFromModel(model: model.optimization.Space.TargetSpace) \
-                       -> TargetSpace:
+    def createFromModel(model: BaseTarget) -> TargetSpace:
         return TargetSpace(index = model.ID, name = model.name, 
                            description = model.description, 
                            nodeCount = model.variableCount)
