@@ -25,6 +25,9 @@ class TargetTypeNotSupportedException(OptimizationFailedException):
         return 'The network of type "{}" is not supported'.format(self.actual)
 
 class ParameterNotConvergedException(OptimizationFailedException):
+    def __init__(self, spaceName = ''):
+        self.reference = spaceName
+    
     def __str__(self) -> str:
-        return 'The parameters in space were not converged'.\
-               format(self.reference)
+        return 'The parameters in space{} were not converged'.\
+               format(' {}'.format(self.reference) if self.reference else '')

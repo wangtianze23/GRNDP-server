@@ -12,7 +12,8 @@ from infrastructure.database.StaticResource import BaseStaticResource
 from infrastructure.file.Metafile import BaseMetafile
 from model.optimization.ParameterSpace import RegulationParameterSpace
 from model.optimization.ParameterSpaceFactory import \
-    DiscreteRegulationParameterSpaceFactory
+    DiscreteRegulationParameterSpaceFactory, \
+    GenerativeRegulationParameterSpaceFactory
 
 
 class SpaceNotFoundException(Exception):
@@ -133,11 +134,17 @@ class RegulationParameterSpaceRepository:
             space = DiscreteRegulationParameterSpaceFactory.\
                             createFromFile(parameterFilename, 
                                            metaInformation['ID'], 
-                                           metaInformation['regulationType'])
+                                           'dataset')
+        elif metaInformation['optimizationType'] == 'generator':
+            parameterFilename = os.path.join(dataDir, self.mainFilename)
+            space = GenerativeRegulationParameterSpaceFactory.\
+                            createFromFile(parameterFilename, 
+                                           metaInformation['ID'], 
+                                           'generator')
         else:
             space = RegulationParameterSpace(
                             ID = metaInformation['ID'], 
-                            regulationType = metaInformation['regulationType'],
-                            name = metaInformation['name'], 
-                            source = metaInformation['optimizationType'])
+                            regulationType = metaInformation['regulationType'])
+        space.name = metaInformation['name']
+        space.source = metaInformation['optimizationType']
         return space

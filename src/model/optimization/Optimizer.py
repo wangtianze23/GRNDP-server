@@ -145,9 +145,6 @@ class NetworkOptimizer:
         regulations = [PairedRegulation(edge.sourceIndex, edge.targetIndex, 
                                         1 if edge.regulationType=='activation' 
                                         else -1, 
-                                        edge.parameterSpace[0] 
-                                        if len(edge.parameterSpace) > 0 
-                                        else 
                                         [0] * edge.parameterSpace.dimension)
                        for edge in edgeList]
         network, parameterMapping = \
@@ -166,13 +163,13 @@ class NetworkOptimizer:
                                 ','.join(X.space.name for X in invalidTargets))
         
         # Create wrapped target functions to optimize
-        paths = [network.getPath(X.nodeIndexes[0], X.nodeIndexes[1]) 
+        paths = [network.getPath(X.nodeIndexes[1], X.nodeIndexes[0]) 
                  for X in targetList]
-        pathFunctions = [lambda X: Y(X[0]) for Y in paths]
+        pathFunctions = [lambda X, F = Y: F(X[0]) for Y in paths]
         targetFunctionals = [BuiltinFunctionalFactory.
                              createFromBuiltinName(X.space.builtin) 
                              for X in targetList]
-        targetFunctions = [lambda: X(Y) 
+        targetFunctions = [lambda T = X, F = Y: T(F) 
                            for X, Y in zip(targetFunctionals, pathFunctions)]
         
         # Optimize the network

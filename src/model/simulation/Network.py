@@ -211,7 +211,7 @@ class BaseNetwork:
             The value of the specified parameter.
         """
         if index.sourceIndexes in self.regulation[index.targetIndex]:
-            self.regulation[index.targetIndex][index.sourceIndexes].\
+            return self.regulation[index.targetIndex][index.sourceIndexes].\
                                                 parameter(index.parameterIndex)
     
     def getAssociatedNodes(self, sourceIndex: int, targetIndex: int) -> set:

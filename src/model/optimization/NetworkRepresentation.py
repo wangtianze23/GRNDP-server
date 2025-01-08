@@ -58,6 +58,7 @@ class PathRepresentation(BaseRepresentation):
             A matplotlib.figure.Figure object containing the graphical 
             representation of the specified path.
         """
+        # Reconstruct a network of the specified topology
         regulations = [PairedRegulation(X.sourceIndex, X.targetIndex, 
                                         1 if X.regulationType == 'activation' 
                                         else -1, 
@@ -65,6 +66,13 @@ class PathRepresentation(BaseRepresentation):
                        for X in regulations]
         network,_=BaseNetworkFactory.createFromPairedRegulations(len(nodeList), 
                                                                  regulations)
-        path = network.getPath(path.sourceIndex, path.targetIndex)
-        samples = floatRange(0, 1, self.samplingDensity)
-        return super().correlation(samples, [path(X) for X in samples])
+        
+        # Generate samples along the specified path
+        pathFunction = network.getPath(path.sourceIndex, path.targetIndex)
+        variableX = floatRange(0, 1, self.samplingDensity)
+        variableY = [pathFunction(X) for X in variableX]
+        
+        # Plot the response curve
+        self.xLabel = nodeList[path.sourceIndex].name
+        self.yLabel = nodeList[path.targetIndex].name
+        return super().correlation(variableX, variableY)
