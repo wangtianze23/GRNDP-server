@@ -263,7 +263,7 @@ class NetworkPath:
         """
         self.network = network
         self.nodeIndexes = nodeIndexes
-        self.nodeValues = [None] * len(self.nodeIndexes)
+        self.nodeValues = [None] * len(network.regulation)
     
     def __call__(self, X: float) -> float:
         """
@@ -280,14 +280,14 @@ class NetworkPath:
             A numeric value representing the effect (output) from the path.
         """
         nodeValues = self.nodeValues
-        for i in self.nodeIndexes:
+        for i, j in enumerate(self.nodeIndexes):
             if i == 0:
-                nodeValues[i] = X
+                nodeValues[j] = X
             else:
-                nodeValues[i] = sum(T(tuple(nodeValues[j] for j in indexes)) 
+                nodeValues[j] = sum(T(tuple(nodeValues[k] for k in indexes)) 
                                     for indexes, T in 
-                                    self.network.regulation[i].items())
-        return nodeValues[-1]
+                                    self.network.regulation[j].items())
+        return nodeValues[self.nodeIndexes[-1]]
 
 class AcyclicNetwork(BaseNetwork):
     """
@@ -317,27 +317,24 @@ class AcyclicNetwork(BaseNetwork):
             the target node.
         """
         nodeIndexes = self.getAssociatedNodes(sourceIndex, targetIndex)
-        connections = [None if i == targetIndex 
-                       else list(set(i for Y in X.keys() for i in Y)) 
-                       for i, X in enumerate(self.regulation) 
-                       if i in nodeIndexes]
+        connections = [list(set(i for Y in X.keys() for i in Y)) 
+                       if i in nodeIndexes else None
+                       for i, X in enumerate(self.regulation)]
         
         # Topological sorting of the directed acyclic graph
         nodeOrders = []
         index = sourceIndex
-        while True:
+        while index is not None:
             nodeOrders.append(index)
-            if index < len(connections):
-                connections[index] = None
-            else:
-                raise NoPathException(sourceIndex, targetIndex)
+            connections[index] = None
             for connection in connections:
                 if connection is not None and index in connection:
                     connection.remove(index)
-            if index == targetIndex or \
-               all(len(X) > 0 for X in connections if X is not None):
-                break
             index = next(iter(i for i, X in enumerate(connections) 
-                              if X is not None and len(X) == 0))
+                              if X is not None and len(X) == 0), None)
+        
+        # Check for the validity of the path
+        if any(X is not None for X in connections):
+            raise NoPathException(sourceIndex, targetIndex)
         
         return NetworkPath(self, nodeOrders)
