@@ -24,6 +24,17 @@ class TargetTypeNotSupportedException(OptimizationFailedException):
     def __str__(self) -> str:
         return 'The network of type "{}" is not supported'.format(self.actual)
 
+class ParameterRangeEmptyException(OptimizationFailedException):
+    def __init__(self, parameterName: str, spaceName = ''):
+        self.actual = parameterName
+        self.reference = spaceName
+    
+    def __str__(self) -> str:
+        return 'The range of parameter "{}" in space{} is empty under '\
+               'the given constraints'.format(self.actual, 
+                                              ' "{}"'.format(self.reference) 
+                                              if self.reference else '')
+
 class ParameterNotConvergedException(OptimizationFailedException):
     def __init__(self, spaceName = ''):
         self.reference = spaceName

@@ -9,11 +9,11 @@ from collections import OrderedDict
 import math
 import scipy.optimize as Optimize
 from infrastructure.math.number import centroid, geometricMean, kNN
-from infrastructure.math.number import intersectRanges
+from infrastructure.math.number import intersectRange, intersectRanges
 from model.optimization.Constraint import RegulationConstraint
 from model.optimization.Network import Parameter, OptimizedRegulation
 from model.optimization.OptimizerException import \
-    ParameterNotConvergedException
+    ParameterNotConvergedException, ParameterRangeEmptyException
 from model.optimization.ParameterSpace import DiscreteRegulationParameterSpace
 from model.optimization.RandomOptimizer import RandomBoundedStep
 from model.simulation.Network import \
@@ -295,27 +295,62 @@ class AcyclicNetworkOptimizer:
                     else:
                         continuousParameterMapping[(i, j)] = mapping[j]
         
-        # Determine the initial parameters and their ranges
+        # Determine the initial values and ranges for continuous parameters
         initialContinuousParameters = \
             [geometricMean(constraints[i].parameterSpace.boundaries[j]) 
              for (i, j) in continuousParameterMapping.keys()]
         continuousParameterRanges = \
             [intersectRanges([constraints[i].parameterSpace.boundaries[j], 
                               *(X.toTuple() 
-                                for X in constraints[i].parameterConstraints)]) 
+                                for X in constraints[i].parameterConstraints 
+                                if X.index == j)]) 
              for (i, j) in continuousParameterMapping.keys()]
-        discreteParameterGroups = [[X.parameterSpace.values[j] 
-                                    for j in Y.keys()] 
+        if any(X is None for X in continuousParameterRanges):
+            (i, j) = next(iter((i, j) for (i, j), Y in 
+                               zip(continuousParameterMapping.keys(), 
+                                   continuousParameterRanges) if Y is None))
+            raise ParameterRangeEmptyException(
+                            constraints[i].parameterSpace.dimensionNames[j], 
+                            constraints[i].parameterSpace.name)
+        
+        # Determine the initial values and ranges for discrete parameters
+        discreteParameterGroups = [[tuple(Z[j] for j in Y.keys()) 
+                                    for Z in X.parameterSpace.values] 
+                                   if len(Y) > 0 else [] 
                                    for X, Y in zip(constraints, 
                                                    discreteParameterMappings)]
         initialDiscreteParameters = [centroid(X) 
                                      for X in discreteParameterGroups]
-        discreteParameterRanges = [[(min(Y[i] for Y in X),max(Y[i] for Y in X))
-                                    for i in range(0, len(X[0]))] if len(X) > 0
-                                   else []
-                                   for X in discreteParameterGroups]
+        discreteParameterRanges = []
+        for i, constraint in enumerate(constraints):
+            parameterGroups = discreteParameterGroups[i]
+            if len(parameterGroups) == 0:
+                discreteParameterRanges.append([])
+                continue
+            parameterRanges = [(min(X[i] for X in parameterGroups), 
+                                max(X[i] for X in parameterGroups))
+                               for i in range(0, len(parameterGroups[0]))]
+            for parameterConstraint in constraint.parameterConstraints:
+                j = parameterConstraint.index
+                newRange = intersectRange(parameterRanges[j], 
+                                          (parameterConstraint.minValue, 
+                                           parameterConstraint.maxValue))
+                if newRange is None or \
+                   not any(newRange[0] <= X <= newRange[1] 
+                           for X in constraint.parameterSpace.values[j]):
+                    raise ParameterRangeEmptyException(
+                                constraint.parameterSpace.name, 
+                                constraint.parameterSpace.dimensionNames[j])
+                parameterRanges[j] = newRange
+            discreteParameterRanges.append(parameterRanges)
+            discreteParameterGroups[i] = [X for X in parameterGroups 
+                                          if all(Z[0] <= Y <= Z[1] for Y, Z in 
+                                                 zip(X, parameterRanges))]
+            if len(discreteParameterGroups[i]) == 0:
+                raise ParameterRangeEmptyException(constraint.parameterSpace.
+                                                   name)
         
-        # Determine the discrete parameters group-by-group
+        # Optimize the discrete parameters group-by-group
         continuousParameters = initialContinuousParameters
         discreteParameters = initialDiscreteParameters
         groupIndexes = [i for i, X in enumerate(discreteParameterMappings) 
@@ -385,6 +420,7 @@ class AcyclicNetworkOptimizer:
             self.updateModel(model, discreteParameters[i], 
                              discreteParameterMappings[i].values())
         
+        # Assemble the optimization result
         regulations = []
         for i, constraint in enumerate(constraints):
             if isDiscrete[i]:

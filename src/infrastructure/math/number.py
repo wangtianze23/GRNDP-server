@@ -60,14 +60,17 @@ def intersectRange(range1: tuple, range2: tuple) -> tuple:
 
     Returns
     -------
-    tuple
+    tuple or NoneType
         A tuple of (float, float) representing the intersection of the 
-        two ranges.
+        two ranges, or None if the two ranges have no intersection.
     """
-    return (range1[0] if range2[0] is None else range2[0] if range1[0] is None 
+    result=(range1[0] if range2[0] is None else range2[0] if range1[0] is None 
             else (max(range1[0], range2[0])), 
             range1[1] if range2[1] is None else range2[1] if range1[1] is None 
             else (min(range1[1], range2[1])))
+    if result[0] <= result[1]:
+        return result
+    return None
 
 def intersectRanges(ranges: list[tuple]) -> tuple:
     """
@@ -82,13 +85,15 @@ def intersectRanges(ranges: list[tuple]) -> tuple:
     -------
     tuple
         A tuple of (float, float) representing the intersection of all the 
-        ranges.
+        ranges, or None if the ranges have no intersection.
     """
     if len(ranges) == 0:
         return tuple()
     result = ranges[0]
     for i in range(1, len(ranges)):
         result = intersectRange(result, ranges[i])
+        if result is None:
+            return None
     return result
 
 def centroid(values: list[tuple]) -> tuple:
