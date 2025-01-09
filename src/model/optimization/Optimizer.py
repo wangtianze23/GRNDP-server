@@ -55,9 +55,27 @@ class NetworkOptimizer:
         -------
         None.
         """
+        self.debugOutput = False
         self.maxIteration = 100
         self.seed = None
         self.trajectoryCount = 1000
+    
+    def setDebugOutput(self, debugOutput = True):
+        """
+        Set the output of debug information.
+
+        Parameters
+        ----------
+        debugOutput :bool, optional
+            Whether to print detailed information about the optimization to 
+            the standard output.
+            The default is True.
+
+        Returns
+        -------
+        None.
+        """
+        self.debugOutput = debugOutput
     
     def setMaximumIteration(self, maxIteration = 100):
         """
@@ -175,6 +193,7 @@ class NetworkOptimizer:
         
         # Optimize the network
         optimizer = AcyclicNetworkOptimizer()
+        optimizer.setDebugOutput(self.debugOutput)
         optimizer.setMaximumIteration(self.maxIteration)
         optimizer.setSeed(self.seed)
         optimizedRegulations = optimizer.optimize(network, edgeList, 

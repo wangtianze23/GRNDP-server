@@ -17,7 +17,8 @@ class BaseServiceConfig:
     The base class of service configuration.
     """
     def __init__(self, staticResourcePath = '../db/static', 
-                 temporaryResourcePath = '', plotOptions = None):
+                 temporaryResourcePath = '', debugOutput = False, 
+                 plotOptions = None):
         """
         Initialize a BaseServiceConfig object.
 
@@ -30,6 +31,9 @@ class BaseServiceConfig:
             Path to the directory to store temporary resources.
             The default is an empty string, i.e. using the default temporary 
             directory specified of the system.
+        debugOutput :bool, optional
+            Whether to print debug information to the standard output.
+            The default is False.
         plotOptions : dict or NoneType, optional
             A dictionary containing strings pointing to arbitrary values that 
             represent the general configuration parameters of plot services, 
@@ -45,6 +49,8 @@ class BaseServiceConfig:
         if len(temporaryResourcePath) == 0:
             temporaryResourcePath = tempfile.gettempdir()
         self.temporaryResource = BaseDatabaseConfig(temporaryResourcePath)
+        
+        self.debugOutput = debugOutput
         
         self.plotConfiguration = BasePlotConfig()
         if type(plotOptions) is dict:

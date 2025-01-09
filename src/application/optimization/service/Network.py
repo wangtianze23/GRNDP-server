@@ -50,6 +50,7 @@ class NetworkOptimization:
         -------
         None.
         """
+        self.config = config
         self.parameterDatabase = RegulatorDB(config.staticResource)
         self.targetDatabase = TargetDB(config.staticResource)
         self.canvas = BaseStaticPlot(config.plotConfiguration)
@@ -111,6 +112,7 @@ class NetworkOptimization:
         
         # Set up an optimizer
         optimizer = NetworkOptimizer()
+        optimizer.setDebugOutput(self.config.debugOutput)
         optimizer.setMaximumIteration(option.optimizationOption.maxIteration)
         optimizer.setSeed(option.optimizationOption.seed 
                           if option.optimizationOption.useSeed else None)

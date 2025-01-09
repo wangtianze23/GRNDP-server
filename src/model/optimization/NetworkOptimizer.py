@@ -32,11 +32,29 @@ class AcyclicNetworkOptimizer:
         -------
         None.
         """
-        self.seed = 0
+        self.debugOutput = False
         self.maxIteration = 10
         self.maxIteration2 = 20
         self.relativeStepSize = 0.2
         self.neighbourCount = 5
+        self.seed = 0
+    
+    def setDebugOutput(self, debugOutput = True):
+        """
+        Set the output of debug information.
+
+        Parameters
+        ----------
+        debugOutput :bool, optional
+            Whether to print detailed information about the optimization to 
+            the standard output.
+            The default is True.
+
+        Returns
+        -------
+        None.
+        """
+        self.debugOutput = debugOutput
     
     def setMaximumIteration(self, maxIteration = 100):
         """
@@ -183,7 +201,7 @@ class AcyclicNetworkOptimizer:
                                        seed = self.seed, 
                                        niter = self.maxIteration, 
                                        take_step = stepMaker, 
-                                       disp = True, 
+                                       disp = self.debugOutput, 
                                        minimizer_kwargs = 
                                        {'method': 'L-BFGS-B', 
                                         'bounds': parameterRanges})
@@ -232,8 +250,9 @@ class AcyclicNetworkOptimizer:
                                      for Y in X)], 
                                   targetFunctions)
             historicalLoss.append(loss)
-            print('  Iteration {}, loss {}; minimum loss {}'.
-                  format(iteration, loss, min(historicalLoss)))
+            if self.debugOutput:
+                print('  Iteration {}, loss {}; minimum loss {}'.
+                      format(iteration, loss, min(historicalLoss)))
             
             # Update with the optimized result
             initialContinuousParameters = \
@@ -361,8 +380,9 @@ class AcyclicNetworkOptimizer:
         oldGroupIndexes = groupIndexes.copy()
         while len(groupIndexes) > 0:
             # Update the clusters around the current group of parameters
-            print('Optimizing discrete parameter clusters for groups {}...'.
-                  format(groupIndexes))
+            if self.debugOutput:
+                print('Optimizing discrete parameter clusters for groups '
+                      '{}...'.format(groupIndexes))
             initialContinuousParameters = continuousParameters
             discreteParameterClusters = \
                 self.optimizeClusters(model, 
@@ -384,7 +404,8 @@ class AcyclicNetworkOptimizer:
             clusterIndex = None
             i = groupIndexes.pop(0)
             clusterIndexes = discreteParameterClusters.pop(0)
-            print('Optimizing the parameter group {}:'.format(i))
+            if self.debugOutput:
+                print('Optimizing the parameter group {}:'.format(i))
             for j in clusterIndexes:
                 self.updateModel(model, discreteParameterGroups[i][j], 
                                  discreteParameterMappings[i].values())
@@ -394,20 +415,23 @@ class AcyclicNetworkOptimizer:
                                       initialContinuousParameters, 
                                       continuousParameterRanges, 
                                       targetFunctions)
-                print('  Loss {} with parameter {}'.
-                      format(loss, discreteParameterGroups[i][j]))
+                if self.debugOutput:
+                    print('  Loss {} with parameter {}'.
+                          format(loss, discreteParameterGroups[i][j]))
                 if loss < oldLoss:
                     continuousParameters = optimizedParameters
                     clusterIndex = j
                     oldLoss = loss
             if clusterIndex is not None:
-                print('  Best parameter found for group {} with loss {}.'.
-                      format(i, oldLoss))
+                if self.debugOutput:
+                    print('  Best parameter found for group {} with loss {}.'.
+                          format(i, oldLoss))
                 discreteParameters[i] = \
                     discreteParameterGroups[i][clusterIndex]
                 oldGroupIndexes = groupIndexes.copy()
             else:
-                print('  Optimization failed for group {}.'.format(i))
+                if self.debugOutput:
+                    print('  Optimization failed for group {}.'.format(i))
                 groupIndexes.append(i)
                 discreteParameterClusters.append(clusterIndexes)
                 if groupIndexes == oldGroupIndexes:
