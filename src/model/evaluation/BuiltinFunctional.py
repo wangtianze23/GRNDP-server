@@ -52,7 +52,7 @@ class MinimumFunctionalTarget(BaseFunctionalTarget):
         """
         super().__init__(name, variableCount, descrption)
     
-    def __call__(self, function: object, variableRanges: list[tuple]) -> float:
+    def __call__(self, function: object) -> float:
         """
         Overrides BaseFunctionalTarget.__call__().
         """
@@ -105,7 +105,7 @@ class InverseMinimumFunctionalTarget(MinimumFunctionalTarget):
         super().__init__(name, variableCount, descrption)
         self.maxValue = 1e10
     
-    def __call__(self, function: object, variableRanges: list[tuple]) -> float:
+    def __call__(self, function: object) -> float:
         """
         Overrides MinimumFunctionalTarget.__call__().
         """
