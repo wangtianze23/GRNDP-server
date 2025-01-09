@@ -6,11 +6,10 @@ Created on Sat Jan  4 20:29:24 2025
 """
 
 from matplotlib.figure import Figure
-from infrastructure.math.number import floatRange
 from infrastructure.plot.StaticPlot import BaseStaticPlot
 from model.optimization.Network import Node, Path, Regulation
+from model.optimization.Representation import BaseRepresentation
 from model.simulation.NetworkFactory import BaseNetworkFactory,PairedRegulation
-from model.simulation.Representation import BaseRepresentation
 
 
 class PathRepresentation(BaseRepresentation):
@@ -35,10 +34,9 @@ class PathRepresentation(BaseRepresentation):
         self.yLogScale = True
         self.xLabel = 'Transcription factor'
         self.yLabel = 'Promoter strength'
-        self.samplingDensity = 300
     
     def response(self, nodeList: list[Node], regulations: list[Regulation], 
-                 path: Path) -> Figure:
+                 path: Path, xRange = (1e-2, 1e2)) -> Figure:
         """
         Plot the response curve of a target node with respect to changes on 
         a source node in a network.
@@ -51,6 +49,10 @@ class PathRepresentation(BaseRepresentation):
             A list of regulations objects containing the result of optimization.
         path : Path
             A Path object indicating the path to visualize.
+        xRange : tuple, optional
+            A tuple of (float, float) indicating the limit of horizontal axis, 
+            or None if the default range shall be used.
+            The default is (1e-2, 1e2).
 
         Returns
         -------
@@ -69,10 +71,9 @@ class PathRepresentation(BaseRepresentation):
         
         # Generate samples along the specified path
         pathFunction = network.getPath(path.sourceIndex, path.targetIndex)
-        variableX = floatRange(0, 1, self.samplingDensity)
-        variableY = [pathFunction(X) for X in variableX]
         
         # Plot the response curve
+        self.xRange = xRange
         self.xLabel = nodeList[path.sourceIndex].name
         self.yLabel = nodeList[path.targetIndex].name
-        return super().correlation(variableX, variableY)
+        return super().curve(lambda X: [pathFunction(Y) for Y in X])

@@ -33,7 +33,7 @@ class BaseFunctionalTarget:
         self.name = name
         self.descrption = descrption
         self.variableCount = variableCount
-        self.variableRanges = [(0, 1)] * variableCount
+        self.variableRanges = [(0, 100)] * variableCount
     
     def __call__(self, function: object) -> float:
         """

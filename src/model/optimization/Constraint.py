@@ -89,7 +89,8 @@ class TargetConstraint:
     """
     The container class for constraints of targets.
     """
-    def __init__(self, nodeIndexes: list[int], space: BaseTarget):
+    def __init__(self, nodeIndexes: list[int], space: BaseTarget, 
+                 valueRanges = None):
         """
         Initialize a TargetConstraint object.
 
@@ -100,6 +101,12 @@ class TargetConstraint:
             the target evaluation.
         space : TargetSpace
             A TargetSpace object representing the target to evaluate.
+        valueRanges : list[tuple] or NoneType, optional
+            A list of tuples of (float, float) representing the lower and 
+            upper boundary for the value of each specified node, or None if 
+            the default boundaries shall be used. The length of the list must 
+            equal to the length of **nodeIndexes**.
+            The default is None.
 
         Returns
         -------
@@ -107,3 +114,4 @@ class TargetConstraint:
         """
         self.nodeIndexes = nodeIndexes
         self.space = space
+        self.valueRanges = valueRanges or [None] * len(nodeIndexes)

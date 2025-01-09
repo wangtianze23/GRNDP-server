@@ -15,6 +15,7 @@ from model.optimization.Network import Parameter, OptimizedRegulation
 from model.optimization.OptimizerException import \
     ParameterNotConvergedException
 from model.optimization.ParameterSpace import DiscreteRegulationParameterSpace
+from model.optimization.RandomOptimizer import RandomBoundedStep
 from model.simulation.Network import \
     NetworkParameterIndex, ParameterMapping, AcyclicNetwork
 
@@ -34,7 +35,7 @@ class AcyclicNetworkOptimizer:
         self.seed = 0
         self.maxIteration = 10
         self.maxIteration2 = 20
-        self.stepSize = 1
+        self.relativeStepSize = 0.2
         self.neighbourCount = 5
     
     def setMaximumIteration(self, maxIteration = 100):
@@ -92,7 +93,7 @@ class AcyclicNetworkOptimizer:
         None.
         """
         for index, parameter in zip(parameterIndexes, parameters):
-            if index.parameterIndex is not None:
+            if index.parameterIndex is not None and not math.isnan(parameter):
                 model.updateRegulation(index, parameter)
     
     @staticmethod
@@ -166,6 +167,14 @@ class AcyclicNetworkOptimizer:
         if len(parameterIndexes) == 0:
             return (self.lossFunction(model, [], [], targetFunctions), [])
         
+        # Determine the step size for updating parameters
+        stepSizes = [(max(X) - min(X)) * self.relativeStepSize 
+                     for X in parameterRanges]
+        stepMaker = RandomBoundedStep(seed = self.seed, 
+                                      maxStep = max(stepSizes), 
+                                      stepBoundaries = [(-X, X) 
+                                                        for X in stepSizes])
+        
         result = Optimize.basinhopping(lambda X: 
                                        self.lossFunction(model, X, 
                                                          parameterIndexes, 
@@ -173,7 +182,7 @@ class AcyclicNetworkOptimizer:
                                        initialParameters, 
                                        seed = self.seed, 
                                        niter = self.maxIteration, 
-                                       stepsize = self.stepSize, 
+                                       take_step = stepMaker, 
                                        disp = True, 
                                        minimizer_kwargs = 
                                        {'method': 'L-BFGS-B', 
@@ -367,7 +376,10 @@ class AcyclicNetworkOptimizer:
                 groupIndexes.append(i)
                 discreteParameterClusters.append(clusterIndexes)
                 if groupIndexes == oldGroupIndexes:
-                    raise ParameterNotConvergedException()
+                    spaceName = ','.join('"{}"'.format(constraints[i].
+                                                       parameterSpace.name) 
+                                         for i in groupIndexes)
+                    raise ParameterNotConvergedException(spaceName)
             self.updateModel(model, continuousParameters, 
                              continuousParameterMapping.values())
             self.updateModel(model, discreteParameters[i], 

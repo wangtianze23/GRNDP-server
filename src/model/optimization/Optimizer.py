@@ -167,7 +167,8 @@ class NetworkOptimizer:
                  for X in targetList]
         pathFunctions = [lambda X, F = Y: F(X[0]) for Y in paths]
         targetFunctionals = [BuiltinFunctionalFactory.
-                             createFromBuiltinName(X.space.builtin) 
+                             createFromBuiltinName(X.space.builtin, 
+                                                   X.valueRanges)
                              for X in targetList]
         targetFunctions = [lambda T = X, F = Y: T(F) 
                            for X, Y in zip(targetFunctionals, pathFunctions)]
