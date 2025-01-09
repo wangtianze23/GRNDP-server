@@ -55,7 +55,7 @@ class Hill(BaseRegulation):
             return self.K
         elif index == 3:
             return self.n
-        return 0
+        return None
     
     def setParameter(self, index: int, parameter: float):
         """
@@ -239,7 +239,7 @@ class HillAR(Hill):
             return self.n_R
         elif index == 6:
             return self.correction
-        return 0
+        return None
     
     def setParameter(self, index: int, parameter: float):
         """

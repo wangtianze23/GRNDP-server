@@ -464,12 +464,15 @@ class AcyclicNetworkOptimizer:
                                                 else X) 
                               for k, X in enumerate(parameters)]
             else:
+                defaultParameters = [X[0] for X in 
+                                     constraint.parameterSpace.boundaries]
                 parameters = [Parameter(index = k, 
                                         name = constraint.parameterSpace.
                                                dimensionNames[k], 
-                                        value = constraint.parameterSpace.
-                                                boundaries[k][0] if X is None 
-                                                else model.getParameter(X)) 
+                                        value = defaultParameters[k] 
+                                                if X is None 
+                                                else (model.getParameter(X) or 
+                                                     defaultParameters[k])) 
                               for (j, k), X in 
                                   continuousParameterMapping.items() if i == j]
                 ID = ''

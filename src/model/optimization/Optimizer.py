@@ -163,7 +163,9 @@ class NetworkOptimizer:
         regulations = [PairedRegulation(edge.sourceIndex, edge.targetIndex, 
                                         1 if edge.regulationType=='activation' 
                                         else -1, 
-                                        [0] * edge.parameterSpace.dimension)
+                                        [min(X) if X is not None else 0 
+                                         for X in 
+                                         edge.parameterSpace.boundaries])
                        for edge in edgeList]
         network, parameterMapping = \
             BaseNetworkFactory.createFromPairedRegulations(nodeCount, 

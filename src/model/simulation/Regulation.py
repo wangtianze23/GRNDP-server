@@ -102,7 +102,7 @@ class ConstantRegulation(BaseRegulation):
         """
         if index == 0:
             return self.y
-        return 0
+        return None
     
     def setParameter(self, index: int, parameter: float):
         """
