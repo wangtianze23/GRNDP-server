@@ -27,6 +27,100 @@ class BaseMetafile:
         """
         self.filename = filename
     
+    @staticmethod
+    def serializeArray(values: list) -> str:
+        """
+        Serialize a list of values into a string.
+
+        Parameters
+        ----------
+        values : list
+            A list or tuple of values. Each element must be of one of 
+            the following types: int, float, str.
+
+        Returns
+        -------
+        str
+            A string representing the serialized array.
+        """
+        return '[{}]'.format(','.join('\'{}\''.format(X.replace('\\', '\\\\').
+                                                        replace('\'', '\\\'').
+                                                        replace(',', '\\x2C')) 
+                                      if type(X) == str else str(X) 
+                                      for X in values))
+    
+    @staticmethod
+    def unserializeArray(value: str) -> list:
+        """
+        Unserialize a string into a list of values.
+
+        Parameters
+        ----------
+        value : str
+            A string representing the values to unserialize into an array.
+            The target values must be of one of the following types: 
+            int, float, str.
+
+        Returns
+        -------
+        str
+            A list of unserialized values.
+        """
+        if len(value) >= 2 and value.startswith('[') and value.endswith(']'):
+            values = [X.strip() for X in value[1 : -1].split(',')]
+            return [X[1 : -1].replace('\\x2C', ',').replace('\\\'', '\'').
+                              replace('\\\\', '\\') 
+                    if X.startswith('\'') and X.endswith('\'') 
+                    else float(X) if '.' in X or 'e+' in X or 'e-' in X 
+                    else int(X)
+                    for X in values]
+        return []
+    
+    @staticmethod
+    def serialize(value: object) -> str:
+        """
+        Serialize a value into a string.
+
+        Parameters
+        ----------
+        values : object
+            A value to serialize. It must be of one of the following types: 
+            int, float, str, list[int], list[float], list[str].
+
+        Returns
+        -------
+        str
+            A string representing the serialized value.
+        """
+        if type(value) == list:
+            return BaseMetafile.serializeArray(value)
+        if type(value) == str:
+            return value.replace('\\', '\\\\').replace('\'', '\\\'').\
+                         replace('\r\n', '\\n').replace('\n', '\\n')
+        return str(value)
+    
+    @staticmethod
+    def unserialize(value: str) -> object:
+        """
+        Serialize a value into a string.
+
+        Parameters
+        ----------
+        values : str
+            A string containing the value to unserialize. 
+            The target value must be of one of the following types: 
+            str, list[int], list[float], list[str].
+
+        Returns
+        -------
+        object
+            An object representing the unserialized value.
+        """
+        if value.startswith('[') and value.endswith(']'):
+            return BaseMetafile.unserializeArray(value)
+        return value.replace('\\n', '\n').replace('\\\'', '\'').\
+                     replace('\\\\', '\\')
+    
     def get(self, names: list) -> dict:
         """
         Get a list of values associated with specified field names.
@@ -57,18 +151,7 @@ class BaseMetafile:
             
             key = fields[0].strip()
             if key in names:
-                if fields[1].startswith('[') and fields[1].endswith(']'):
-                    tempValues = [X.strip() 
-                                  for X in fields[1][1 : -1].split(',')]
-                    result[key] = [X[1 : -1] 
-                                   if X.startswith('\'') and X.endswith('\'')
-                                   else X 
-                                   for X in tempValues]
-                else:
-                    if fields[1].startswith('\'') and fields[1].endswith('\''):
-                        result[key] = fields[1][1 : -1]
-                    else:
-                        result[key] = fields[1]
+                result[key] = self.unserialize(fields[1])
         metaFile.close()
         return result
     
@@ -79,12 +162,14 @@ class BaseMetafile:
         Parameters
         ----------
         values : dict
-            A list of key-value pairs representing named values.
+            A list of key-value pairs representing named values. The values 
+            must be one of the following types: int, float, str, list[int], 
+            list[float], list[str].
 
         Returns
         -------
         None.
         """
         metaFile = open(self.filename, 'w')
-        metaFile.writelines('{}={}\n'.format(key, value) 
+        metaFile.writelines('{}={}\n'.format(key, self.serialize(value)) 
                             for key, value in values.items())
