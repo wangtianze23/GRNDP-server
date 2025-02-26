@@ -134,13 +134,13 @@ class RegulationParameterSpaceRepository:
             space = DiscreteRegulationParameterSpaceFactory.\
                             createFromFile(parameterFilename, 
                                            metaInformation['ID'], 
-                                           'dataset')
+                                           metaInformation['regulationType'])
         elif metaInformation['optimizationType'] == 'generator':
             parameterFilename = os.path.join(dataDir, self.mainFilename)
             space = GenerativeRegulationParameterSpaceFactory.\
                             createFromFile(parameterFilename, 
                                            metaInformation['ID'], 
-                                           'generator')
+                                           metaInformation['regulationType'])
         else:
             space = RegulationParameterSpace(
                             ID = metaInformation['ID'], 
