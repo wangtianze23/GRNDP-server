@@ -11,7 +11,7 @@ from application.optimization.assembler.SpaceAssembler import \
     RegulationParameterSpaceAssembler, TargetSpaceAssembler
 from application.optimization.assembler.ResultAssembler import \
     OptimizedRegulationAssembler, OptimizedTargetAssembler, \
-    VisualizedPathAssembler
+    VisualizedPathAssembler, VisualizedDensityAssembler
 from application.optimization.DTO.Option import OptimizationOption
 from application.optimization.DTO.Resource import OptimizationResource
 from application.optimization.DTO.Result import \
@@ -21,9 +21,11 @@ from infrastructure.database.StaticResource import RegulatorDB, TargetDB
 from infrastructure.plot.StaticPlot import BaseStaticPlot
 from model.optimization.Constraint import \
     ParameterConstraint, RegulationConstraint, TargetConstraint
-from model.optimization.Network import Node
-from model.optimization.NetworkRepresentation import PathRepresentation
-from model.optimization.Optimizer import NetworkOptimizer
+from model.optimization.Network import Node, Path
+from model.optimization.NetworkRepresentation import \
+    PathRepresentation, DensityRepresentation
+from model.optimization.Optimizer import \
+    NetworkOptimizer, DynamicSimulationOption
 from model.optimization.OptimizerException import OptimizationFailedException
 from model.optimization.ParameterSpaceRepository import \
     RegulationParameterSpaceRepository
@@ -107,7 +109,8 @@ class NetworkOptimization:
         
         repository = BaseTargetRepository(self.targetDatabase)
         targetSpaces = [TargetConstraint(target.nodeIndexes, 
-                                         repository.retrieveByID(target.index)) 
+                                         repository.retrieveByID(target.index), 
+                                         target.expectedValue) 
                         for target in option.optimizationTargetList]
         
         # Set up an optimizer
@@ -116,7 +119,11 @@ class NetworkOptimization:
         optimizer.setMaximumIteration(option.optimizationOption.maxIteration)
         optimizer.setSeed(option.optimizationOption.seed 
                           if option.optimizationOption.useSeed else None)
-        optimizer.setTrajectoryCount(option.optimizationOption.trajectoryCount)
+        optimizer.setSimulationOption(
+            DynamicSimulationOption(option.optimizationOption.minNoise, 
+                                    option.optimizationOption.relativeNoise, 
+                                    option.optimizationOption.timeSpan, 
+                                    option.optimizationOption.trajectoryCount))
         
         # Run optimization
         try:
@@ -129,13 +136,28 @@ class NetworkOptimization:
                     processId = option.processId, 
                     data = OptimizationResultBody(optimizedEdgeList = [],
                                                   optimizedTargetList = [], 
-                                                  visualizedPathList = []))
+                                                  visualizedPathList = [], 
+                                                  visualizedDensityList = []))
         
         # Visualize paths in the optimized network
         representator = PathRepresentation(self.canvas)
-        visualizedResult = [representator.response(option.nodeList, 
-                                                   result.regulations, X) 
+        visualizedResult = [representator.
+                            response(option.nodeList, result.regulations, 
+                                     Path(X.sourceIndex, X.targetIndex)) 
                             for X in option.visualizedPathList]
+        
+        # Visualize probability density in the optimized network
+        representator = DensityRepresentation(self.canvas)
+        representator.setSampleCount(option.optimizationOption.trajectoryCount)
+        representator.setSamplingTime(option.optimizationOption.timeSpan)
+        visualizedResult = [representator.
+                            density(option.nodeList, result.regulations, 
+                                    X.nodeIndex, 
+                                    minNoise = 
+                                    option.optimizationOption.minNoise, 
+                                    relativeNoise = 
+                                    option.optimizationOption.relativeNoise) 
+                            for X in option.visualizedDensityList]
         
         # Assemble the optimization result
         resultBody = OptimizationResultBody(
@@ -149,7 +171,12 @@ class NetworkOptimization:
                         visualizedPathList = 
                         [VisualizedPathAssembler.createFromFigure(X, Y) 
                          for X, Y in zip(visualizedResult, 
-                                         option.visualizedPathList)])
+                                         option.visualizedPathList)], 
+                        visualizedDensityList = 
+                        [VisualizedDensityAssembler.
+                         createFromFigure(X, Y.nodeIndex) 
+                         for X, Y in zip(visualizedResult, 
+                                         option.visualizedDensityList)])
         return OptimizationResult(message = result.message, 
                                 processId = option.processId, 
                                 data = resultBody)

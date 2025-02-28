@@ -17,16 +17,17 @@ from model.optimization.OptimizerException import \
 from model.optimization.ParameterSpace import DiscreteRegulationParameterSpace
 from model.optimization.RandomOptimizer import RandomBoundedStep
 from model.simulation.Network import \
-    NetworkParameterIndex, ParameterMapping, AcyclicNetwork
+    NetworkParameterIndex, ParameterMapping, BaseNetwork
+from model.simulation.DynamicNetwork import BaseDynamicNetwork
 
 
-class AcyclicNetworkOptimizer:
+class BaseNetworkParameterOptimizer:
     """
-    The class for optimizing AcyclicNetwork objects.
+    The base class for optimizing BaseNetwork objects.
     """
     def __init__(self):
         """
-        Initialize a MixedNetworkOptimizer object.
+        Initialize a BaseNetworkParameterOptimizer object.
 
         Returns
         -------
@@ -90,15 +91,15 @@ class AcyclicNetworkOptimizer:
         self.seed = seed
     
     @staticmethod
-    def updateModel(model: AcyclicNetwork, parameters: list[float], 
+    def updateModel(model: BaseNetwork, parameters: list[float], 
                     parameterIndexes: list[NetworkParameterIndex]):
         """
         Update the parameter of a model.
 
         Parameters
         ----------
-        model : AcyclicNetwork
-            An AcyclicNetwork object representing the network to optimize.
+        model : BaseNetwork
+            A BaseNetwork object representing the network to optimize.
         parameters: list[float]
             A list of numeric values representing the network parameters to 
             update.
@@ -115,7 +116,7 @@ class AcyclicNetworkOptimizer:
                 model.updateRegulation(index, parameter)
     
     @staticmethod
-    def lossFunction(model: AcyclicNetwork, parameters: list[float], 
+    def lossFunction(model: BaseNetwork, parameters: list[float], 
                      parameterIndexes: list[NetworkParameterIndex], 
                      targetFunctions: list[object]) -> float:
         """
@@ -123,8 +124,8 @@ class AcyclicNetworkOptimizer:
 
         Parameters
         ----------
-        model : AcyclicNetwork
-            An AcyclicNetwork object representing the network to optimize.
+        model : BaseNetwork
+            A BaseNetwork object representing the network to optimize.
         parameters: list[float]
             A list of numeric values representing the network parameters to 
             update before evaluating the targets.
@@ -141,11 +142,11 @@ class AcyclicNetworkOptimizer:
             The optimization loss evaluated on the updated model.
         """
         if len(parameterIndexes) > 0:
-            AcyclicNetworkOptimizer.updateModel(model, 
-                                                parameters, parameterIndexes)
+            BaseNetworkParameterOptimizer.updateModel(model, parameters, 
+                                                      parameterIndexes)
         return math.prod(X() for X in targetFunctions)
     
-    def optimizeOnce(self, model: AcyclicNetwork, 
+    def optimizeOnce(self, model: BaseNetwork, 
                      parameterIndexes: list[NetworkParameterIndex], 
                      initialParameters: list[float], 
                      parameterRanges: list[tuple], 
@@ -156,8 +157,8 @@ class AcyclicNetworkOptimizer:
 
         Parameters
         ----------
-        model : AcyclicNetwork
-            An AcyclicNetwork object representing the network to optimize.
+        model : BaseNetwork
+            A BaseNetwork object representing the network to optimize.
         parameterIndexes : list[NetworkParameterIndex]
             A list of NetworkParameterIndex objects representing the index of 
             parameters in a network to optimize.
@@ -208,7 +209,7 @@ class AcyclicNetworkOptimizer:
         self.updateModel(model, result['x'], parameterIndexes)
         return (result['fun'], result['x'].tolist())
     
-    def optimizeClusters(self, model: AcyclicNetwork, 
+    def optimizeClusters(self, model: BaseNetwork, 
                          discreteParameterGroups: list[list[list]], 
                          continuousParameterIndexes: 
                              list[NetworkParameterIndex], 
@@ -267,7 +268,7 @@ class AcyclicNetworkOptimizer:
         return [kNN(X, Y, self.neighbourCount) for X, Y in 
                 zip(historicalParameters[index], discreteParameterGroups)]
     
-    def optimize(self, model: AcyclicNetwork, 
+    def optimize(self, model: BaseNetwork, 
                  constraints: list[RegulationConstraint], 
                  parameterMapping: list[ParameterMapping], 
                  targetFunctions: list[object]) -> list[OptimizedRegulation]:
@@ -276,8 +277,8 @@ class AcyclicNetworkOptimizer:
 
         Parameters
         ----------
-        model : AcyclicNetwork
-            An AcyclicNetwork object representing the network to optimize.
+        model : BaseNetwork
+            A BaseNetwork object representing the network to optimize.
         constraints : list[RegulationConstraint]
             A list of RegulationConstraint objects representing the space of 
             network parameters to optimize with respect to the targets defined 

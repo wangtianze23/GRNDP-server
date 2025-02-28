@@ -5,12 +5,13 @@ Created on Sat Jan  4 21:10:29 2025
 @author: Tz Wang <wangtianze23@mails.ucas.ac.cn>
 """
 
-from model.evaluation.Functional import BaseFunctionalTarget
+from model.evaluation.Functional import BaseFunctional
 from model.evaluation.FunctionalException import FunctionalTypeNotSupported
 from model.evaluation.BuiltinFunctional import \
-    MinimumFunctionalTarget, MaximumFunctionalTarget, \
-    InverseMinimumFunctionalTarget, InverseMaximumFunctionalTarget, \
-    FWHMTarget
+    MinimumFunctional, MaximumFunctional, \
+    InverseMinimumFunctional, InverseMaximumFunctional, FWHMFunctional
+from model.evaluation.BuiltinProbabilityFunctional import \
+    PopulationRatioFunctional
 
 
 class BuiltinFunctionalFactory:
@@ -18,10 +19,9 @@ class BuiltinFunctionalFactory:
     The factory class for built-in functional classes.
     """
     @staticmethod
-    def createFromBuiltinName(name: str, valueRanges = None) \
-                             -> BaseFunctionalTarget:
+    def createFromBuiltinName(name: str, valueRanges = None) -> BaseFunctional:
         """
-        Construct a BaseFunctionalTarget object from its representative name.
+        Construct a BaseFunctional object from its representative name.
 
         Parameters
         ----------
@@ -37,13 +37,13 @@ class BuiltinFunctionalFactory:
 
         Returns
         -------
-        BaseFunctionalTarget
-            A BaseFunctionalTarget of the specified name.
+        BaseFunctional
+            A BaseFunctional of the specified name.
         """
         for targetClass in \
-            (MinimumFunctionalTarget, MaximumFunctionalTarget, 
-             InverseMinimumFunctionalTarget, InverseMaximumFunctionalTarget, 
-             FWHMTarget):
+            (MinimumFunctional, MaximumFunctional, 
+             InverseMinimumFunctional, InverseMaximumFunctional, 
+             FWHMFunctional, PopulationRatioFunctional):
             if targetClass.builtinName == name:
                 target = targetClass()
                 for i, valueRange in enumerate(valueRanges):

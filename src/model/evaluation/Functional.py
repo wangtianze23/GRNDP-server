@@ -8,13 +8,13 @@ Created on Fri Jan  3 19:20:13 2025
 from model.evaluation.Sampler import BaseSampler, LinearSampler
 
 
-class BaseFunctionalTarget:
+class BaseFunctional:
     """
     The base class for evaluating a target on a function.
     """
     def __init__(self, name: str, variableCount: int, descrption = ''):
         """
-        Initialize a BaseFunctionalTarget object.
+        Initialize a BaseFunctional object.
 
         Parameters
         ----------
@@ -49,7 +49,7 @@ class BaseFunctionalTarget:
         float
             The evaluated target.
         """
-        raise NotImplementedError(BaseFunctionalTarget.__call__)
+        raise NotImplementedError(BaseFunctional.__call__)
     
     def setVaribleRange(self, index: int, variableRange: tuple):
         """
@@ -70,14 +70,14 @@ class BaseFunctionalTarget:
         if index < len(self.variableRanges):
             self.variableRanges[index] = variableRange
 
-class DiscreteFunctionalTarget(BaseFunctionalTarget):
+class DiscreteFunctional(BaseFunctional):
     """
     The class for evaluating a target on a function of discrete variables.
     """
     def __init__(self, name: str, variableCount: int, descrption = '', 
                  sampleCount = 20):
         """
-        Initialize a DiscreteFunctionalTarget object.
+        Initialize a DiscreteFunctional object.
 
         Parameters
         ----------
@@ -120,7 +120,7 @@ class DiscreteFunctionalTarget(BaseFunctionalTarget):
     
     def setVaribleRange(self, index: int, variableRange: tuple):
         """
-        Overrides BaseFunctionalTarget.setVaribleRange().
+        Overrides BaseFunctional.setVaribleRange().
         """
         super().setVaribleRange(index, variableRange)
         self.sampler.setVaribleRange(index, variableRange)
