@@ -10,21 +10,21 @@ import scipy.signal as Signal
 import scipy.stats as Stats
 from infrastructure.math.number import floatRange
 from infrastructure.math.signal import FWHM, fitGaussianPeaks
-from model.evaluation.Functional import BaseFunctional
+from model.evaluation.Functional import BaseFunctional, CompoundFunctional
 
 
-class PopulationRatioFunctional(BaseFunctional):
+class SubpopulationRatioFunctional(BaseFunctional):
     """
     The class for evaluating the ratio of probability density between two 
-    clusters (populations) of the value of a temporal function.
+    potential clusters (subpopulations) of the value of a temporal function.
     """
-    builtinName = 'densityRatio'
+    builtinName = 'subpopulationRatio'
     
-    def __init__(self, name = 'PopulationRatio', variableCount = 0, 
+    def __init__(self, name = 'SubpopulationRatio', variableCount = 0, 
                  descrption = 'The ratio of probability density between two '
-                              'clusters of an output'):
+                              'potential clusters of an output'):
         """
-        Initialize a PopulationRatioFunctional object.
+        Initialize a SubpopulationRatioFunctional object.
         """
         super().__init__(name, variableCount, descrption)
     
@@ -60,3 +60,50 @@ class PopulationRatioFunctional(BaseFunctional):
         _, peakHeights = fitGaussianPeaks(distribution, [peak1, peak2])
         
         return peakHeights[0] / peakHeights[1]
+
+class InverseVarianceFunctional(BaseFunctional):
+    """
+    The class for evaluating the inverse of variance of probability density 
+    of the value of a temporal function.
+    """
+    builtinName = '1/variance'
+    
+    def __init__(self, name = 'InverseVariance', variableCount = 0, 
+                 descrption = 'The inverse of variance of probability density '
+                              'of an output'):
+        """
+        Initialize an InverseVarianceFunctional object.
+        """
+        super().__init__(name, variableCount, descrption)
+        self.maxValue = 1e10
+    
+    def __call__(self, function: object) -> float:
+        """
+        Overrides BaseFunctional.__call__().
+        """
+        # Get samples of function values
+        values = function()
+        
+        # Calculate the variance
+        mean = sum(values) / len(values)
+        variance = sum((X - mean) ** 2 for X in values) / len(values)
+        return 1 / variance if variance > 0 else self.maxValue
+
+class PopulationRatioFunctional(CompoundFunctional):
+    """
+    The class for evaluating the ratio of probability density between two 
+    clusters (populations) of the value of a temporal function.
+    """
+    builtinName = 'populationRatio'
+    
+    def __init__(self, name = 'PopulationRatio', variableCount = 0, 
+                 descrption = 'The ratio of probability density between two '
+                              'clusters of an output'):
+        """
+        Initialize a PopulationRatioFunctional object.
+        """
+        super().__init__(name, variableCount, 
+                         [SubpopulationRatioFunctional(), 
+                          InverseVarianceFunctional()], 
+                         descrption = descrption)
+        self.reduction = math.prod

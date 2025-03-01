@@ -5,6 +5,7 @@ Created on Fri Sep 13 19:25:34 2024
 @author: Tz Wang <wangtianze23@mails.ucas.ac.cn>
 """
 
+from model.evaluation.Functional import CompoundFunctional
 from model.evaluation.FunctionalFactory import BuiltinFunctionalFactory
 from model.optimization.Constraint import RegulationConstraint,TargetConstraint
 from model.optimization.Network import Node, OptimizedRegulation
@@ -258,6 +259,8 @@ class NetworkOptimizer:
                                                   targetFunctions)
         
         # Re-evaluate the optimized target functions
-        optimizedTargets = [X() for X in targetFunctions]
+        optimizedTargets = [X(Y)[0] if isinstance(X, CompoundFunctional) 
+                            else X(Y)
+                            for X, Y in zip(targetFunctionals, inputFunctions)]
         
         return OptimizationResult(optimizedRegulations, optimizedTargets)

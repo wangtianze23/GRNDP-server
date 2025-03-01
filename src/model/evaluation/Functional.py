@@ -124,3 +124,56 @@ class DiscreteFunctional(BaseFunctional):
         """
         super().setVaribleRange(index, variableRange)
         self.sampler.setVaribleRange(index, variableRange)
+
+class CompoundFunctional(BaseFunctional):
+    """
+    The base class for evaluating a compound target on a function.
+    """
+    def __init__(self, name: str, variableCount: int, 
+                 components: list[BaseFunctional], descrption = ''):
+        """
+        Initialize a CompoundFunctional object.
+
+        Parameters
+        ----------
+        name : str
+            The name of the target.
+        variableCount : int
+            The number of variables of the function object.
+        components : list[BaseFunctional]
+            A list of BaseFunctional objects representing the component 
+            functionals (subtargets).
+        descrption : str, optional
+            A string representing the description of the target. 
+            The default is an empty string.
+
+        Returns
+        -------
+        None.
+        """
+        super().__init__(name, variableCount, descrption = descrption)
+        self.components = components
+        self.reduction = sum
+    
+    def __call__(self, function: object) -> float:
+        """
+        Overrides BaseFunctional.__call__().
+        """
+        return self.reduction([X(function) for X in self.components])
+    
+    def evaluate(self, function: object) -> list[float]:
+        """
+        Evaluate the target on a function of defined ranges.
+
+        Parameters
+        ----------
+        function : object
+            A callable object representing the function to evaluate.
+
+        Returns
+        -------
+        list[float]
+            A list of float numbers representing the target evaluated on 
+            each component functional.
+        """
+        return [X(function) for X in self.components]
