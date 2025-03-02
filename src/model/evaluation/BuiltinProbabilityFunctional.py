@@ -13,7 +13,44 @@ from infrastructure.math.signal import FWHM, fitGaussianPeaks
 from model.evaluation.Functional import BaseFunctional, CompoundFunctional
 
 
-class SubpopulationRatioFunctional(BaseFunctional):
+class ProbabilityFunctionalMixin:
+    """
+    Mixin class (interface) for evaluating the probability density of 
+    a target on a function.
+    Attributes required in derived classes:
+        - sampleQueue: list[list[float]]
+    """
+    def appendSamples(self, values: list[float]):
+        """
+        Append a list of samples to the sample queue for evaluation in future.
+
+        Parameters
+        ----------
+        values : list[float]
+            A list of float values representing the sampled values of 
+            the target.
+
+        Returns
+        -------
+        None.
+        """
+        self.sampleQueue.append(values)
+    
+    def takeSamples(self) -> list[float]:
+        """
+        Take a list of samples out of the sample queue for evaluation.
+
+        Returns
+        -------
+        list[float]
+            A list of float values representing a series of sampled values of 
+            the target.
+        """
+        if len(self.sampleQueue) > 0:
+            return self.sampleQueue.pop(0)
+        return []
+
+class SubpopulationRatioFunctional(ProbabilityFunctionalMixin, BaseFunctional):
     """
     The class for evaluating the ratio of probability density between two 
     potential clusters (subpopulations) of the value of a temporal function.
@@ -27,13 +64,16 @@ class SubpopulationRatioFunctional(BaseFunctional):
         Initialize a SubpopulationRatioFunctional object.
         """
         super().__init__(name, variableCount, descrption)
+        self.sampleQueue = []
     
     def __call__(self, function: object) -> float:
         """
         Overrides BaseFunctional.__call__().
         """
         # Get samples of function values
-        values = function()
+        values = self.takeSamples()
+        if len(values) == 0:
+            values = function()
         
         # Kernel density estimation for the distribution of logarithm of values
         logMinValue = math.log(min(X for X in values if X > 0))
@@ -61,7 +101,7 @@ class SubpopulationRatioFunctional(BaseFunctional):
         
         return peakHeights[0] / peakHeights[1]
 
-class InverseVarianceFunctional(BaseFunctional):
+class InverseVarianceFunctional(ProbabilityFunctionalMixin, BaseFunctional):
     """
     The class for evaluating the inverse of variance of probability density 
     of the value of a temporal function.
@@ -76,20 +116,23 @@ class InverseVarianceFunctional(BaseFunctional):
         """
         super().__init__(name, variableCount, descrption)
         self.maxValue = 1e10
+        self.sampleQueue = []
     
     def __call__(self, function: object) -> float:
         """
         Overrides BaseFunctional.__call__().
         """
         # Get samples of function values
-        values = function()
+        values = self.takeSamples()
+        if len(values) == 0:
+            values = function()
         
         # Calculate the variance
         mean = sum(values) / len(values)
         variance = sum((X - mean) ** 2 for X in values) / len(values)
         return 1 / variance if variance > 0 else self.maxValue
 
-class PopulationRatioFunctional(CompoundFunctional):
+class PopulationRatioFunctional(ProbabilityFunctionalMixin,CompoundFunctional):
     """
     The class for evaluating the ratio of probability density between two 
     clusters (populations) of the value of a temporal function.
@@ -107,3 +150,18 @@ class PopulationRatioFunctional(CompoundFunctional):
                           InverseVarianceFunctional()], 
                          descrption = descrption)
         self.reduction = math.prod
+        self.sampleQueue = []
+    
+    def __call__(self, function: object) -> float:
+        """
+        Overrides CompoundFunctional.__call__().
+        """
+        # Get samples of function values
+        values = self.takeSamples()
+        if len(values) == 0:
+            values = function()
+        
+        # Evaluate the subtargets
+        for component in self.components:
+            component.appendSamples(values)
+        return super().__call__(function)

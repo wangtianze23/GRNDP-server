@@ -9,7 +9,8 @@ from model.evaluation.Functional import CompoundFunctional
 from model.evaluation.FunctionalFactory import BuiltinFunctionalFactory
 from model.optimization.Constraint import RegulationConstraint,TargetConstraint
 from model.optimization.Network import Node, OptimizedRegulation
-from model.optimization.ParameterOptimizer import BaseNetworkParameterOptimizer
+from model.optimization.ParameterOptimizer import \
+    BaseNetworkParameterOptimizer, DynamicNetworkParameterOptimizer
 from model.optimization.OptimizerException import \
     TargetTypeNotSupportedException
 from model.simulation.DynamicNetwork import BaseDynamicNetwork
@@ -232,10 +233,12 @@ class NetworkOptimizer:
                              for X in targetList]
         expectedValues = [X.expectedValue for X in targetList]
         if acyclic:
+            optimizer = BaseNetworkParameterOptimizer()
             paths = [network.getPath(X.nodeIndexes[1], X.nodeIndexes[0]) 
                      for X in targetList]
             inputFunctions = [lambda X, F = Y: F(X[0]) for Y in paths]
         else:
+            optimizer = DynamicNetworkParameterOptimizer()
             initialVariables = [0] * nodeCount
             inputFunctions = [lambda: 
                               [Y[X.nodeIndexes[0]] 
@@ -250,7 +253,6 @@ class NetworkOptimizer:
                                               inputFunctions, expectedValues)]
         
         # Optimize the network
-        optimizer = BaseNetworkParameterOptimizer()
         optimizer.setDebugOutput(self.debugOutput)
         optimizer.setMaximumIteration(self.maxIteration)
         optimizer.setSeed(self.seed)
@@ -259,7 +261,8 @@ class NetworkOptimizer:
                                                   targetFunctions)
         
         # Re-evaluate the optimized target functions
-        optimizedTargets = [X(Y)[0] if isinstance(X, CompoundFunctional) 
+        optimizedTargets = [X.evaluate(Y)[0] 
+                            if isinstance(X, CompoundFunctional) 
                             else X(Y)
                             for X, Y in zip(targetFunctionals, inputFunctions)]
         

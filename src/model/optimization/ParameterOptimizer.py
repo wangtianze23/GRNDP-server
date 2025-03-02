@@ -482,3 +482,19 @@ class BaseNetworkParameterOptimizer:
                                                    constraint.regulationType, 
                                                    parameters, ID))
         return regulations
+
+class DynamicNetworkParameterOptimizer(BaseNetworkParameterOptimizer):
+    """
+    The base class for optimizing BaseDynamicNetwork objects.
+    """
+    def __init__(self):
+        """
+        Initialize a DynamicNetworkParameterOptimizer object.
+
+        Returns
+        -------
+        None.
+        """
+        super().__init__()
+        self.maxIteration = 5
+        self.maxIteration2 = 10
