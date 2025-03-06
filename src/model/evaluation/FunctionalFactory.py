@@ -11,6 +11,7 @@ from model.evaluation.BuiltinFunctional import \
     MinimumFunctional, MaximumFunctional, \
     InverseMinimumFunctional, InverseMaximumFunctional, FWHMFunctional
 from model.evaluation.BuiltinProbabilityFunctional import \
+    InverseVarianceFunctional, InverseLogSpanFunctional, \
     PopulationRatioFunctional
 
 
@@ -43,7 +44,8 @@ class BuiltinFunctionalFactory:
         for targetClass in \
             (MinimumFunctional, MaximumFunctional, 
              InverseMinimumFunctional, InverseMaximumFunctional, 
-             FWHMFunctional, PopulationRatioFunctional):
+             FWHMFunctional, InverseVarianceFunctional, 
+             InverseLogSpanFunctional, PopulationRatioFunctional):
             if targetClass.builtinName == name:
                 target = targetClass()
                 for i, valueRange in enumerate(valueRanges):

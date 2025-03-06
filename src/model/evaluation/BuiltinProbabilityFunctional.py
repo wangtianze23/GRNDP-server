@@ -101,18 +101,68 @@ class SubpopulationRatioFunctional(ProbabilityFunctionalMixin, BaseFunctional):
         
         return peakHeights[0] / peakHeights[1]
 
+class InverseLogSpanFunctional(ProbabilityFunctionalMixin, BaseFunctional):
+    """
+    The class for evaluating the inverse of span of logarithm of the value 
+    of a temporal function.
+    """
+    builtinName = '1/logSpan'
+    
+    def __init__(self, name = 'InverseLogSpan', variableCount = 0, 
+                 descrption = 'The inverse of span of logarithim of '
+                              'an output'):
+        """
+        Initialize an InverseLogSpanFunctional object.
+        """
+        super().__init__(name, variableCount, descrption)
+        self.maxValue = math.log(1e10)
+        self.sampleQueue = []
+    
+    def __call__(self, function: object) -> float:
+        """
+        Overrides BaseFunctional.__call__().
+        """
+        # Get samples of function values
+        values = self.takeSamples()
+        if len(values) == 0:
+            values = function()
+        
+        # Kernel density estimation for the distribution of logarithm of values
+        logMinValue = math.log(min(X for X in values if X > 0))
+        kernel = Stats.gaussian_kde([math.log(X) if X > 0 else logMinValue - 1 
+                                     for X in values])
+        
+        # Resample from the estimated distribution
+        logMinValue = math.log(min(values)) - 2
+        logMaxValue = math.log(max(values)) + 2
+        count = int(len(values) / 2)
+        distribution = kernel(floatRange(logMinValue, logMaxValue, count))
+        
+        # Find all maxima
+        peaks = Signal.find_peaks(distribution)[0]
+        if len(peaks) < 2:
+            # Unimodal distribution
+            peakCoverage = FWHM(distribution.tolist())
+        else:
+            peakCoverage = max(peaks) - min(peaks)
+        
+        # Calculate the span
+        span = peakCoverage * (logMaxValue - logMinValue) / count
+        
+        # Calculate the inverse of span
+        return min(1 / span, self.maxValue) if span > 0 else self.maxValue
+
 class InverseVarianceFunctional(ProbabilityFunctionalMixin, BaseFunctional):
     """
-    The class for evaluating the inverse of variance of probability density 
-    of the value of a temporal function.
+    The class for evaluating the inverse of variance of the value of 
+    a temporal function.
     """
     builtinName = '1/variance'
     
     def __init__(self, name = 'InverseVariance', variableCount = 0, 
-                 descrption = 'The inverse of variance of probability density '
-                              'of an output'):
+                 descrption = 'The inverse of variance of an output'):
         """
-        Initialize an InverseVarianceFunctional object.
+        Initialize an InverseLogVarianceFunctional object.
         """
         super().__init__(name, variableCount, descrption)
         self.maxValue = 1e10
@@ -130,6 +180,8 @@ class InverseVarianceFunctional(ProbabilityFunctionalMixin, BaseFunctional):
         # Calculate the variance
         mean = sum(values) / len(values)
         variance = sum((X - mean) ** 2 for X in values) / len(values)
+        
+        # Calculate the inverse of variance
         return 1 / variance if variance > 0 else self.maxValue
 
 class PopulationRatioFunctional(ProbabilityFunctionalMixin,CompoundFunctional):
@@ -147,7 +199,7 @@ class PopulationRatioFunctional(ProbabilityFunctionalMixin,CompoundFunctional):
         """
         super().__init__(name, variableCount, 
                          [SubpopulationRatioFunctional(), 
-                          InverseVarianceFunctional()], 
+                          InverseLogSpanFunctional()], 
                          descrption = descrption)
         self.reduction = math.prod
         self.sampleQueue = []

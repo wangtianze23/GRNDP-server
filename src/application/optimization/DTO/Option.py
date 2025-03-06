@@ -25,7 +25,7 @@ class RegulationConstraint(Edge):
 class TargetConstraint(BaseModel):
     index: int
     nodeIndexes: list[int]
-    expectedValue: float = None
+    expectedValue: float | None = None
 
 class OptimizerOption(BaseModel):
     seed: int

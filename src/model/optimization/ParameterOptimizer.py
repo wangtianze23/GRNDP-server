@@ -186,6 +186,21 @@ class BaseNetworkParameterOptimizer:
         if len(parameterIndexes) == 0:
             return (self.lossFunction(model, [], [], targetFunctions), [])
         
+        # Exclude fixed parameters
+        freeParameterIndexes = [i for i, X in enumerate(parameterRanges) 
+                                if min(X) < max(X)]
+        initialParameters = [X if i in freeParameterIndexes 
+                             else min(parameterRanges[i]) 
+                             for i, X in enumerate(initialParameters)]
+        if len(freeParameterIndexes) == 0:
+            return (self.lossFunction(model, initialParameters, 
+                                      parameterIndexes, targetFunctions), 
+                    initialParameters)
+        self.updateModel(model, initialParameters, parameterIndexes)
+        freeParameters = [initialParameters[i] for i in freeParameterIndexes]
+        parameterRanges = [parameterRanges[i] for i in freeParameterIndexes]
+        parameterIndexes = [parameterIndexes[i] for i in freeParameterIndexes]
+        
         # Determine the step size for updating parameters
         stepSizes = [(max(X) - min(X)) * self.relativeStepSize 
                      for X in parameterRanges]
@@ -194,11 +209,12 @@ class BaseNetworkParameterOptimizer:
                                       stepBoundaries = [(-X, X) 
                                                         for X in stepSizes])
         
+        # Global optimization
         result = Optimize.basinhopping(lambda X: 
                                        self.lossFunction(model, X, 
                                                          parameterIndexes, 
                                                          targetFunctions),
-                                       initialParameters, 
+                                       freeParameters, 
                                        seed = self.seed, 
                                        niter = self.maxIteration, 
                                        take_step = stepMaker, 
@@ -206,8 +222,15 @@ class BaseNetworkParameterOptimizer:
                                        minimizer_kwargs = 
                                        {'method': 'L-BFGS-B', 
                                         'bounds': parameterRanges})
+        
+        # Update the model with the optimized parameters
         self.updateModel(model, result['x'], parameterIndexes)
-        return (result['fun'], result['x'].tolist())
+        
+        # Return the optimization loss and the optimized parameters
+        fittedParameters = initialParameters
+        for i, X in zip(freeParameterIndexes, result['x']):
+            fittedParameters[i] = X
+        return (result['fun'], fittedParameters)
     
     def optimizeClusters(self, model: BaseNetwork, 
                          discreteParameterGroups: list[list[list]], 
@@ -389,8 +412,10 @@ class BaseNetworkParameterOptimizer:
                 self.optimizeClusters(model, 
                                       [discreteParameterGroups[i] 
                                        for i in groupIndexes], 
-                                      continuousParameterMapping.values(), 
-                                      [discreteParameterMappings[i].values()  
+                                      list(continuousParameterMapping.
+                                           values()), 
+                                      [list(discreteParameterMappings[i].
+                                            values()) 
                                        for i in groupIndexes], 
                                       initialContinuousParameters, 
                                       [discreteParameters[i] 
@@ -409,10 +434,11 @@ class BaseNetworkParameterOptimizer:
                 print('Optimizing the parameter group {}:'.format(i))
             for j in clusterIndexes:
                 self.updateModel(model, discreteParameterGroups[i][j], 
-                                 discreteParameterMappings[i].values())
+                                 list(discreteParameterMappings[i].values()))
                 loss, optimizedParameters = \
                     self.optimizeOnce(model, 
-                                      continuousParameterMapping.values(),
+                                      list(continuousParameterMapping.
+                                           values()),
                                       initialContinuousParameters, 
                                       continuousParameterRanges, 
                                       targetFunctions)
@@ -441,9 +467,9 @@ class BaseNetworkParameterOptimizer:
                                          for i in groupIndexes)
                     raise ParameterNotConvergedException(spaceName)
             self.updateModel(model, continuousParameters, 
-                             continuousParameterMapping.values())
+                             list(continuousParameterMapping.values()))
             self.updateModel(model, discreteParameters[i], 
-                             discreteParameterMappings[i].values())
+                             list(discreteParameterMappings[i].values()))
         
         # Assemble the optimization result
         regulations = []
@@ -498,3 +524,84 @@ class DynamicNetworkParameterOptimizer(BaseNetworkParameterOptimizer):
         super().__init__()
         self.maxIteration = 5
         self.maxIteration2 = 10
+        self.neighbourCount = 10
+    
+    def optimizeOnce(self, model: BaseDynamicNetwork, 
+                     parameterIndexes: list[NetworkParameterIndex], 
+                     initialParameters: list[float], 
+                     parameterRanges: list[tuple], 
+                     targetFunctions: list[object]) -> tuple:
+        """
+        Run a round of global optimization (minimization) of a list of targets 
+        with respect to a given set of model parameters.
+
+        Parameters
+        ----------
+        model : BaseDynamicNetwork
+            A BaseDynamicNetwork object representing the network to optimize.
+        parameterIndexes : list[NetworkParameterIndex]
+            A list of NetworkParameterIndex objects representing the index of 
+            parameters in a network to optimize.
+        initialParameters : list[float]
+            A list of numeric values representing the intial guess for each 
+            parameter before optimization. The length of the list equals to 
+            the length of **parameterIndexes**.
+        parameterRanges : list[tuple]
+            A list of tuple of (float, float) representing the boundary for 
+            each parameter during optimization. The length of the list equals 
+            to the length of **parameterIndexes**.
+        targetFunctions : list[object]
+            A list of callable objects (wrapped functions) whose values shall 
+            be minimized.
+
+        Returns
+        -------
+        tuple
+            A tuple of the following items:
+                - A float value representing the optimization loss.
+                - A list of float values representing the optimized set of \
+                  model parameters. The length of the list equals to \
+                  the length of **parameterIndexes**.
+        """
+        if len(parameterIndexes) == 0:
+            return (self.lossFunction(model, [], [], targetFunctions), [])
+        
+        # Exclude fixed parameters
+        freeParameterIndexes = [i for i, X in enumerate(parameterRanges) 
+                                if min(X) < max(X)]
+        initialParameters = [X if i in freeParameterIndexes 
+                             else min(parameterRanges[i]) 
+                             for i, X in enumerate(initialParameters)]
+        if len(freeParameterIndexes) == 0:
+            return (self.lossFunction(model, initialParameters, 
+                                      parameterIndexes, targetFunctions), 
+                    initialParameters)
+        self.updateModel(model, initialParameters, parameterIndexes)
+        freeParameters = [initialParameters[i] for i in freeParameterIndexes]
+        parameterRanges = [parameterRanges[i] for i in freeParameterIndexes]
+        parameterIndexes = [parameterIndexes[i] for i in freeParameterIndexes]
+        
+        # Global optimization
+        try:
+            result = Optimize.dual_annealing(lambda X: 
+                                             self.lossFunction(
+                                                 model, X, parameterIndexes, 
+                                                 targetFunctions),
+                                             bounds = parameterRanges, 
+                                             x0 = freeParameters, 
+                                             seed = self.seed, 
+                                             maxiter = self.maxIteration, 
+                                             minimizer_kwargs = 
+                                             {'method': 'L-BFGS-B', 
+                                              'options': {'maxfun': 100}})
+        except ValueError:
+            return (math.inf, initialParameters)
+        
+        # Update the model with the optimized parameters
+        self.updateModel(model, result['x'], parameterIndexes)
+        
+        # Return the optimization loss and the optimized parameters
+        fittedParameters = initialParameters
+        for i, X in zip(freeParameterIndexes, result['x']):
+            fittedParameters[i] = X
+        return (result['fun'], fittedParameters)
