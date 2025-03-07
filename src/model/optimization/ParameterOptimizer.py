@@ -479,7 +479,7 @@ class BaseNetworkParameterOptimizer:
                               for X in discreteParameterMappings[i].values()]
                 matchedIndexes = [j for j, X in 
                                   enumerate(constraint.parameterSpace.values) 
-                                  if all(Y for Y, Z in zip(X, parameters)
+                                  if all(Y == Z for Y, Z in zip(X, parameters)
                                          if Z is not None)]
                 j = matchedIndexes[0]
                 ID = constraint.parameterSpace.valueIDs[j]
@@ -524,6 +524,7 @@ class DynamicNetworkParameterOptimizer(BaseNetworkParameterOptimizer):
         super().__init__()
         self.maxIteration = 5
         self.maxIteration2 = 10
+        self.maxLocalSearches = 3
         self.neighbourCount = 10
     
     def optimizeOnce(self, model: BaseDynamicNetwork, 
@@ -592,8 +593,10 @@ class DynamicNetworkParameterOptimizer(BaseNetworkParameterOptimizer):
                                              seed = self.seed, 
                                              maxiter = self.maxIteration, 
                                              minimizer_kwargs = 
-                                             {'method': 'L-BFGS-B', 
-                                              'options': {'maxfun': 100}})
+                                             {'method': 'Nelder-Mead', 
+                                              'options': 
+                                              {'maxiter':self.maxLocalSearches, 
+                                               'disp': self.debugOutput}})
         except ValueError:
             return (math.inf, initialParameters)
         

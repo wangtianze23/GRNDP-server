@@ -10,7 +10,7 @@ Created on Wed Jan  8 15:51:35 2025
 import os
 from infrastructure.database.StaticResource import BaseStaticResource
 from infrastructure.file.Metafile import BaseMetafile
-from model.optimization.Target import BaseTarget
+from model.optimization.Target import BaseTarget, BuiltinTarget
 
 
 class TargetNotFoundException(Exception):
@@ -121,11 +121,19 @@ class BaseTargetRepository:
         
         # Parse the meta-file
         metaFile = BaseMetafile(os.path.join(dataDir, self.metaFilename))
-        metaInformation = metaFile.get(['ID', 'name', 'builtin', 
-                                        'description', 'nodeCount'])
-        target = BaseTarget(ID = metaInformation['ID'], 
-                            variableCount = int(metaInformation['nodeCount']), 
-                            name = metaInformation['name'], 
-                            builtin = metaInformation['builtin'], 
-                            description = metaInformation['description'])
+        metaInformation = metaFile.get(['name', 'nodeCount', 'description', 
+                                        'builtin', 'functionals'])
+        name = metaInformation.get('name', '')
+        variableCount = int(metaInformation.get('nodeCount', 0))
+        description = metaInformation.get('description', '')
+        if 'builtin' in metaInformation:
+            if 'functionals' in metaInformation:
+                functionalNames = metaInformation['functionals']
+            else:
+                functionalNames = [metaInformation['builtin']]
+            target = BuiltinTarget(ID, variableCount, functionalNames, 
+                                   name = name, description = description)
+        else:
+            target = BaseTarget(ID, variableCount, 
+                                name = name, description = description)
         return target

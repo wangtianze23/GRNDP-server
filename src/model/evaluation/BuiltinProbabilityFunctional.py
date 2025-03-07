@@ -50,57 +50,6 @@ class ProbabilityFunctionalMixin:
             return self.sampleQueue.pop(0)
         return []
 
-class SubpopulationRatioFunctional(ProbabilityFunctionalMixin, BaseFunctional):
-    """
-    The class for evaluating the ratio of probability density between two 
-    potential clusters (subpopulations) of the value of a temporal function.
-    """
-    builtinName = 'subpopulationRatio'
-    
-    def __init__(self, name = 'SubpopulationRatio', variableCount = 0, 
-                 descrption = 'The ratio of probability density between two '
-                              'potential clusters of an output'):
-        """
-        Initialize a SubpopulationRatioFunctional object.
-        """
-        super().__init__(name, variableCount, descrption)
-        self.sampleQueue = []
-    
-    def __call__(self, function: object) -> float:
-        """
-        Overrides BaseFunctional.__call__().
-        """
-        # Get samples of function values
-        values = self.takeSamples()
-        if len(values) == 0:
-            values = function()
-        
-        # Kernel density estimation for the distribution of logarithm of values
-        logMinValue = math.log(min(X for X in values if X > 0))
-        kernel = Stats.gaussian_kde([math.log(X) if X > 0 else logMinValue - 1 
-                                     for X in values])
-        
-        # Resample from the estimated distribution
-        logMinValue = math.log(min(values)) - 2
-        logMaxValue = math.log(max(values)) + 2
-        count = int(len(values) / 3)
-        distribution = kernel(floatRange(logMinValue, 
-                                         logMaxValue, count)).tolist()
-        
-        # Find all maxima
-        peaks = Signal.find_peaks(distribution)[0]
-        if len(peaks) < 2:
-            # Unimodal distribution
-            peakWidth = int(FWHM(distribution) / 2 + 0.5)
-            peak1 = peaks[0] - peakWidth
-            peak2 = peaks[0] + peakWidth
-        else:
-            peak1 = min(peaks[:2])
-            peak2 = max(peaks[:2])
-        _, peakHeights = fitGaussianPeaks(distribution, [peak1, peak2])
-        
-        return peakHeights[0] / peakHeights[1]
-
 class InverseLogSpanFunctional(ProbabilityFunctionalMixin, BaseFunctional):
     """
     The class for evaluating the inverse of span of logarithm of the value 
@@ -184,7 +133,7 @@ class InverseVarianceFunctional(ProbabilityFunctionalMixin, BaseFunctional):
         # Calculate the inverse of variance
         return 1 / variance if variance > 0 else self.maxValue
 
-class PopulationRatioFunctional(ProbabilityFunctionalMixin,CompoundFunctional):
+class PopulationRatioFunctional(ProbabilityFunctionalMixin, BaseFunctional):
     """
     The class for evaluating the ratio of probability density between two 
     clusters (populations) of the value of a temporal function.
@@ -197,23 +146,38 @@ class PopulationRatioFunctional(ProbabilityFunctionalMixin,CompoundFunctional):
         """
         Initialize a PopulationRatioFunctional object.
         """
-        super().__init__(name, variableCount, 
-                         [SubpopulationRatioFunctional(), 
-                          InverseLogSpanFunctional()], 
-                         descrption = descrption)
-        self.reduction = math.prod
+        super().__init__(name, variableCount, descrption)
         self.sampleQueue = []
     
     def __call__(self, function: object) -> float:
         """
-        Overrides CompoundFunctional.__call__().
+        Overrides BaseFunctional.__call__().
         """
         # Get samples of function values
         values = self.takeSamples()
         if len(values) == 0:
             values = function()
         
-        # Evaluate the subtargets
-        for component in self.components:
-            component.appendSamples(values)
-        return super().__call__(function)
+        # Kernel density estimation for the distribution of logarithm of values
+        logMinValue = math.log(min(X for X in values if X > 0))
+        kernel = Stats.gaussian_kde([math.log(X) if X > 0 else logMinValue - 1 
+                                     for X in values])
+        
+        # Resample from the estimated distribution
+        logMinValue = math.log(min(values)) - 2
+        logMaxValue = math.log(max(values)) + 2
+        count = int(len(values) / 2)
+        distribution = kernel(floatRange(logMinValue, 
+                                         logMaxValue, count)).tolist()
+        
+        # Find all maxima
+        peaks = Signal.find_peaks(distribution)[0]
+        if len(peaks) < 2:
+            # Unimodal distribution
+            return math.inf
+        
+        peak1 = min(peaks[:2])
+        peak2 = max(peaks[:2])
+        _, peakHeights = fitGaussianPeaks(distribution, [peak1, peak2])
+        
+        return peakHeights[0] / peakHeights[1]

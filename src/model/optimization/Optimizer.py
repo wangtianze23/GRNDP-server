@@ -5,9 +5,10 @@ Created on Fri Sep 13 19:25:34 2024
 @author: Tz Wang <wangtianze23@mails.ucas.ac.cn>
 """
 
-from model.evaluation.Functional import CompoundFunctional
 from model.evaluation.FunctionalFactory import BuiltinFunctionalFactory
 from model.optimization.Constraint import RegulationConstraint,TargetConstraint
+from model.optimization.LossFactory import OptimizationLossFactory
+from model.optimization.Target import BuiltinTarget
 from model.optimization.Network import Node, OptimizedRegulation
 from model.optimization.ParameterOptimizer import \
     BaseNetworkParameterOptimizer, DynamicNetworkParameterOptimizer
@@ -219,7 +220,7 @@ class NetworkOptimizer:
         
         # Check the validity of all targets
         invalidTargets = [X for X in targetList 
-                          if len(X.space.builtin) == '' or 
+                          if not isinstance(X.space, BuiltinTarget) or 
                              X.space.variableCount > 0 and 
                              X.space.variableCount != len(X.nodeIndexes)]
         if len(invalidTargets) > 0:
@@ -227,11 +228,6 @@ class NetworkOptimizer:
                                 ','.join(X.space.name for X in invalidTargets))
         
         # Create wrapped target functions to optimize
-        targetFunctionals = [BuiltinFunctionalFactory.
-                             createFromBuiltinName(X.space.builtin, 
-                                                   X.valueRanges)
-                             for X in targetList]
-        expectedValues = [X.expectedValue for X in targetList]
         if acyclic:
             optimizer = BaseNetworkParameterOptimizer()
             paths = [network.getPath(X.nodeIndexes[1], X.nodeIndexes[0]) 
@@ -247,10 +243,10 @@ class NetworkOptimizer:
                                         self.simulationOption.timeSpan, 
                                         self.simulationOption.trajectoryCount)]
                               for X in targetList]
-        targetFunctions = [(lambda T = X, F = Y: T(F)) if Z is None 
-                           else (lambda T = X, F = Y, E = Z: (T(F) - E) ** 2) 
-                           for X, Y, Z in zip(targetFunctionals, 
-                                              inputFunctions, expectedValues)]
+        lossFunctions = [OptimizationLossFactory.
+                         createFromTargetConstraint(X) for X in targetList]
+        optimizationTargets = [lambda F = X, L = Y: L(F) 
+                               for X, Y in zip(inputFunctions, lossFunctions)]
         
         # Optimize the network
         optimizer.setDebugOutput(self.debugOutput)
@@ -258,12 +254,14 @@ class NetworkOptimizer:
         optimizer.setSeed(self.seed)
         optimizedRegulations = optimizer.optimize(network, edgeList, 
                                                   parameterMapping, 
-                                                  targetFunctions)
+                                                  optimizationTargets)
         
         # Re-evaluate the optimized target functions
-        optimizedTargets = [X.evaluate(Y)[0] 
-                            if isinstance(X, CompoundFunctional) 
-                            else X(Y)
+        targetFunctionals = [BuiltinFunctionalFactory.
+                             createFromBuiltinName(X.space.functionalNames[0], 
+                                                   valueRanges = X.valueRanges)
+                             for X in targetList]
+        optimizedTargets = [X(Y) 
                             for X, Y in zip(targetFunctionals, inputFunctions)]
         
         return OptimizationResult(optimizedRegulations, optimizedTargets)

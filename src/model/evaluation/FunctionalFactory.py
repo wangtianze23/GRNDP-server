@@ -31,9 +31,10 @@ class BuiltinFunctionalFactory:
             object.
         valueRanges : list[tuple] or NoneType, optional
             A list of tuples of (float, float) representing the lower and 
-            upper boundary for the value of each specified node, or None if 
-            the default boundaries shall be used. The length of the list must 
-            equal to the length of **nodeIndexes**.
+            upper boundary for the value of each input variable of the input 
+            function, or None if the default boundaries shall be used. 
+            The length of the list must equal to the number of input variables 
+            of any function to evaluate.
             The default is None.
 
         Returns
