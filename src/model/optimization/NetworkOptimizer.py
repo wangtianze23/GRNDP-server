@@ -355,8 +355,8 @@ class AcyclicNetworkOptimizer:
                                           (parameterConstraint.minValue, 
                                            parameterConstraint.maxValue))
                 if newRange is None or \
-                   not any(newRange[0] <= X <= newRange[1] 
-                           for X in constraint.parameterSpace.values[j]):
+                   not any(newRange[0] <= X[j] <= newRange[1] 
+                           for X in constraint.parameterSpace.values):
                     raise ParameterRangeEmptyException(
                                 constraint.parameterSpace.name, 
                                 constraint.parameterSpace.dimensionNames[j])
@@ -452,7 +452,7 @@ class AcyclicNetworkOptimizer:
                               for X in discreteParameterMappings[i].values()]
                 matchedIndexes = [j for j, X in 
                                   enumerate(constraint.parameterSpace.values) 
-                                  if all(Y for Y, Z in zip(X, parameters)
+                                  if all(Y == Z for Y, Z in zip(X, parameters)
                                          if Z is not None)]
                 j = matchedIndexes[0]
                 ID = constraint.parameterSpace.valueIDs[j]
