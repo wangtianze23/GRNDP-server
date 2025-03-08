@@ -109,7 +109,7 @@ class NetworkOptimization:
         
         repository = BaseTargetRepository(self.targetDatabase)
         targetSpaces = [TargetConstraint(target.nodeIndexes, 
-                                         repository.retrieveByID(target.index), 
+                                         repository.retrieveByID(target.ID), 
                                          target.expectedValue) 
                         for target in option.optimizationTargetList]
         
