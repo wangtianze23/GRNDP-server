@@ -89,6 +89,10 @@ class BaseStaticPlot:
         self.config = config
         self.fileFormat = 'png'
         
+        matplotlib.rcParams['figure.subplot.left'] = config.marginLeft
+        matplotlib.rcParams['figure.subplot.right'] = config.marginRight
+        matplotlib.rcParams['figure.subplot.bottom'] = config.marginBottom
+        matplotlib.rcParams['figure.subplot.top'] = config.marginTop
         matplotlib.rcParams['xtick.direction'] = config.tickDirection
         matplotlib.rcParams['ytick.direction'] = config.tickDirection
         matplotlib.rcParams['font.size'] = config.fontSize
