@@ -35,6 +35,6 @@ class RegulationParameterSpaceAssembler:
 class TargetSpaceAssembler:
     @staticmethod
     def createFromModel(model: BaseTarget) -> TargetSpace:
-        return TargetSpace(index = model.ID, name = model.name, 
+        return TargetSpace(index = model.ID, ID = model.ID, name = model.name, 
                            description = model.description, 
                            nodeCount = model.variableCount)

@@ -23,6 +23,7 @@ class RegulationParameterSpace(BaseModel):
 
 class TargetSpace(BaseModel):
     index: int
+    ID: int
     name: str
     description: str
     nodeCount: int

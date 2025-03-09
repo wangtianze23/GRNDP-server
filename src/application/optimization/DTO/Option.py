@@ -23,7 +23,8 @@ class RegulationConstraint(Edge):
     optimizationConstraints: list[ParameterConstraint] = []
 
 class TargetConstraint(BaseModel):
-    ID: int
+    index: int | None = None
+    ID: int | None = None
     nodeIndexes: list[int]
     expectedValue: float | None = None
 
