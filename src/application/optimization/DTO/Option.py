@@ -8,7 +8,8 @@ Created on Thu Sep 12 20:17:28 2024
 from pydantic import BaseModel
 from application.experiment.DTO.Option import ExperimentOption
 from application.optimization.DTO.Network import Node, Edge
-from application.optimization.DTO.Visualization import PathVisualization
+from application.optimization.DTO.Visualization import \
+    DensityVisulization, PathVisualization
 
 
 class ParameterConstraint(BaseModel):
@@ -22,14 +23,18 @@ class RegulationConstraint(Edge):
     optimizationConstraints: list[ParameterConstraint] = []
 
 class TargetConstraint(BaseModel):
-    index: int
+    ID: int
     nodeIndexes: list[int]
+    expectedValue: float | None = None
 
 class OptimizerOption(BaseModel):
-    seed: int
-    useSeed: bool
-    trajectoryCount: int
-    maxIteration: int
+    seed: int = 0
+    useSeed: bool = True
+    trajectoryCount: int = 200
+    maxIteration: int = 100
+    minNoise: float = 0.002
+    relativeNoise: float = 0.3
+    timeSpan: float = 24
 
 class OptimizationOption(ExperimentOption):
     nodeList: list[Node]
@@ -37,3 +42,4 @@ class OptimizationOption(ExperimentOption):
     optimizationTargetList: list[TargetConstraint]
     optimizationOption: OptimizerOption
     visualizedPathList: list[PathVisualization] = []
+    visualizedDensityList: list[DensityVisulization] = []

@@ -10,7 +10,7 @@ class BaseTarget:
     """
     The base class for optimization target classes.
     """
-    def __init__(self, ID: int, variableCount: int, name = '', builtin = '', 
+    def __init__(self, ID: int, variableCount: int, name = '', 
                  description = ''):
         """
         Initialize a BaseTarget object.
@@ -38,6 +38,37 @@ class BaseTarget:
         """
         self.name = name
         self.ID = ID
-        self.builtin = builtin
         self.variableCount = variableCount
         self.description = description
+
+class BuiltinTarget(BaseTarget):
+    """
+    The class for built-in optimization targets.
+    """
+    def __init__(self, ID: int, variableCount: int, functionalNames: list[str],
+                 name = '', description = ''):
+        """
+        Initialize a BuiltinTarget object.
+
+        Parameters
+        ----------
+        ID : int
+            A integer representing the identity of the target.
+        variableCount : int
+            The number of variables of the function object.
+        functionalNames : list[str]
+            A list of strings representing the internal name of each component 
+            functionals.
+        name : str
+            The name of the target. 
+            The default is an empty string.
+        descrption : str, optional
+            A string representing the description of the target. 
+            The default is an empty string.
+
+        Returns
+        -------
+        None.
+        """
+        super().__init__(ID, variableCount, description = description)
+        self.functionalNames = functionalNames

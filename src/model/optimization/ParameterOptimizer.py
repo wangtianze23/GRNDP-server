@@ -17,16 +17,17 @@ from model.optimization.OptimizerException import \
 from model.optimization.ParameterSpace import DiscreteRegulationParameterSpace
 from model.optimization.RandomOptimizer import RandomBoundedStep
 from model.simulation.Network import \
-    NetworkParameterIndex, ParameterMapping, AcyclicNetwork
+    NetworkParameterIndex, ParameterMapping, BaseNetwork
+from model.simulation.DynamicNetwork import BaseDynamicNetwork
 
 
-class AcyclicNetworkOptimizer:
+class BaseNetworkParameterOptimizer:
     """
-    The class for optimizing AcyclicNetwork objects.
+    The base class for optimizing BaseNetwork objects.
     """
     def __init__(self):
         """
-        Initialize a MixedNetworkOptimizer object.
+        Initialize a BaseNetworkParameterOptimizer object.
 
         Returns
         -------
@@ -90,15 +91,15 @@ class AcyclicNetworkOptimizer:
         self.seed = seed
     
     @staticmethod
-    def updateModel(model: AcyclicNetwork, parameters: list[float], 
+    def updateModel(model: BaseNetwork, parameters: list[float], 
                     parameterIndexes: list[NetworkParameterIndex]):
         """
         Update the parameter of a model.
 
         Parameters
         ----------
-        model : AcyclicNetwork
-            An AcyclicNetwork object representing the network to optimize.
+        model : BaseNetwork
+            A BaseNetwork object representing the network to optimize.
         parameters: list[float]
             A list of numeric values representing the network parameters to 
             update.
@@ -115,7 +116,7 @@ class AcyclicNetworkOptimizer:
                 model.updateRegulation(index, parameter)
     
     @staticmethod
-    def lossFunction(model: AcyclicNetwork, parameters: list[float], 
+    def lossFunction(model: BaseNetwork, parameters: list[float], 
                      parameterIndexes: list[NetworkParameterIndex], 
                      targetFunctions: list[object]) -> float:
         """
@@ -123,8 +124,8 @@ class AcyclicNetworkOptimizer:
 
         Parameters
         ----------
-        model : AcyclicNetwork
-            An AcyclicNetwork object representing the network to optimize.
+        model : BaseNetwork
+            A BaseNetwork object representing the network to optimize.
         parameters: list[float]
             A list of numeric values representing the network parameters to 
             update before evaluating the targets.
@@ -141,11 +142,11 @@ class AcyclicNetworkOptimizer:
             The optimization loss evaluated on the updated model.
         """
         if len(parameterIndexes) > 0:
-            AcyclicNetworkOptimizer.updateModel(model, 
-                                                parameters, parameterIndexes)
+            BaseNetworkParameterOptimizer.updateModel(model, parameters, 
+                                                      parameterIndexes)
         return math.prod(X() for X in targetFunctions)
     
-    def optimizeOnce(self, model: AcyclicNetwork, 
+    def optimizeOnce(self, model: BaseNetwork, 
                      parameterIndexes: list[NetworkParameterIndex], 
                      initialParameters: list[float], 
                      parameterRanges: list[tuple], 
@@ -156,8 +157,8 @@ class AcyclicNetworkOptimizer:
 
         Parameters
         ----------
-        model : AcyclicNetwork
-            An AcyclicNetwork object representing the network to optimize.
+        model : BaseNetwork
+            A BaseNetwork object representing the network to optimize.
         parameterIndexes : list[NetworkParameterIndex]
             A list of NetworkParameterIndex objects representing the index of 
             parameters in a network to optimize.
@@ -185,6 +186,21 @@ class AcyclicNetworkOptimizer:
         if len(parameterIndexes) == 0:
             return (self.lossFunction(model, [], [], targetFunctions), [])
         
+        # Exclude fixed parameters
+        freeParameterIndexes = [i for i, X in enumerate(parameterRanges) 
+                                if min(X) < max(X)]
+        initialParameters = [X if i in freeParameterIndexes 
+                             else min(parameterRanges[i]) 
+                             for i, X in enumerate(initialParameters)]
+        if len(freeParameterIndexes) == 0:
+            return (self.lossFunction(model, initialParameters, 
+                                      parameterIndexes, targetFunctions), 
+                    initialParameters)
+        self.updateModel(model, initialParameters, parameterIndexes)
+        freeParameters = [initialParameters[i] for i in freeParameterIndexes]
+        parameterRanges = [parameterRanges[i] for i in freeParameterIndexes]
+        parameterIndexes = [parameterIndexes[i] for i in freeParameterIndexes]
+        
         # Determine the step size for updating parameters
         stepSizes = [(max(X) - min(X)) * self.relativeStepSize 
                      for X in parameterRanges]
@@ -193,11 +209,12 @@ class AcyclicNetworkOptimizer:
                                       stepBoundaries = [(-X, X) 
                                                         for X in stepSizes])
         
+        # Global optimization
         result = Optimize.basinhopping(lambda X: 
                                        self.lossFunction(model, X, 
                                                          parameterIndexes, 
                                                          targetFunctions),
-                                       initialParameters, 
+                                       freeParameters, 
                                        seed = self.seed, 
                                        niter = self.maxIteration, 
                                        take_step = stepMaker, 
@@ -205,10 +222,17 @@ class AcyclicNetworkOptimizer:
                                        minimizer_kwargs = 
                                        {'method': 'L-BFGS-B', 
                                         'bounds': parameterRanges})
+        
+        # Update the model with the optimized parameters
         self.updateModel(model, result['x'], parameterIndexes)
-        return (result['fun'], result['x'].tolist())
+        
+        # Return the optimization loss and the optimized parameters
+        fittedParameters = initialParameters
+        for i, X in zip(freeParameterIndexes, result['x']):
+            fittedParameters[i] = X
+        return (result['fun'], fittedParameters)
     
-    def optimizeClusters(self, model: AcyclicNetwork, 
+    def optimizeClusters(self, model: BaseNetwork, 
                          discreteParameterGroups: list[list[list]], 
                          continuousParameterIndexes: 
                              list[NetworkParameterIndex], 
@@ -267,7 +291,7 @@ class AcyclicNetworkOptimizer:
         return [kNN(X, Y, self.neighbourCount) for X, Y in 
                 zip(historicalParameters[index], discreteParameterGroups)]
     
-    def optimize(self, model: AcyclicNetwork, 
+    def optimize(self, model: BaseNetwork, 
                  constraints: list[RegulationConstraint], 
                  parameterMapping: list[ParameterMapping], 
                  targetFunctions: list[object]) -> list[OptimizedRegulation]:
@@ -276,8 +300,8 @@ class AcyclicNetworkOptimizer:
 
         Parameters
         ----------
-        model : AcyclicNetwork
-            An AcyclicNetwork object representing the network to optimize.
+        model : BaseNetwork
+            A BaseNetwork object representing the network to optimize.
         constraints : list[RegulationConstraint]
             A list of RegulationConstraint objects representing the space of 
             network parameters to optimize with respect to the targets defined 
@@ -388,8 +412,10 @@ class AcyclicNetworkOptimizer:
                 self.optimizeClusters(model, 
                                       [discreteParameterGroups[i] 
                                        for i in groupIndexes], 
-                                      continuousParameterMapping.values(), 
-                                      [discreteParameterMappings[i].values()  
+                                      list(continuousParameterMapping.
+                                           values()), 
+                                      [list(discreteParameterMappings[i].
+                                            values()) 
                                        for i in groupIndexes], 
                                       initialContinuousParameters, 
                                       [discreteParameters[i] 
@@ -408,10 +434,11 @@ class AcyclicNetworkOptimizer:
                 print('Optimizing the parameter group {}:'.format(i))
             for j in clusterIndexes:
                 self.updateModel(model, discreteParameterGroups[i][j], 
-                                 discreteParameterMappings[i].values())
+                                 list(discreteParameterMappings[i].values()))
                 loss, optimizedParameters = \
                     self.optimizeOnce(model, 
-                                      continuousParameterMapping.values(),
+                                      list(continuousParameterMapping.
+                                           values()),
                                       initialContinuousParameters, 
                                       continuousParameterRanges, 
                                       targetFunctions)
@@ -440,9 +467,9 @@ class AcyclicNetworkOptimizer:
                                          for i in groupIndexes)
                     raise ParameterNotConvergedException(spaceName)
             self.updateModel(model, continuousParameters, 
-                             continuousParameterMapping.values())
+                             list(continuousParameterMapping.values()))
             self.updateModel(model, discreteParameters[i], 
-                             discreteParameterMappings[i].values())
+                             list(discreteParameterMappings[i].values()))
         
         # Assemble the optimization result
         regulations = []
@@ -481,3 +508,105 @@ class AcyclicNetworkOptimizer:
                                                    constraint.regulationType, 
                                                    parameters, ID))
         return regulations
+
+class DynamicNetworkParameterOptimizer(BaseNetworkParameterOptimizer):
+    """
+    The base class for optimizing BaseDynamicNetwork objects.
+    """
+    def __init__(self):
+        """
+        Initialize a DynamicNetworkParameterOptimizer object.
+
+        Returns
+        -------
+        None.
+        """
+        super().__init__()
+        self.maxIteration = 5
+        self.maxIteration2 = 10
+        self.maxLocalSearches = 1
+        self.neighbourCount = 10
+    
+    def optimizeOnce(self, model: BaseDynamicNetwork, 
+                     parameterIndexes: list[NetworkParameterIndex], 
+                     initialParameters: list[float], 
+                     parameterRanges: list[tuple], 
+                     targetFunctions: list[object]) -> tuple:
+        """
+        Run a round of global optimization (minimization) of a list of targets 
+        with respect to a given set of model parameters.
+
+        Parameters
+        ----------
+        model : BaseDynamicNetwork
+            A BaseDynamicNetwork object representing the network to optimize.
+        parameterIndexes : list[NetworkParameterIndex]
+            A list of NetworkParameterIndex objects representing the index of 
+            parameters in a network to optimize.
+        initialParameters : list[float]
+            A list of numeric values representing the intial guess for each 
+            parameter before optimization. The length of the list equals to 
+            the length of **parameterIndexes**.
+        parameterRanges : list[tuple]
+            A list of tuple of (float, float) representing the boundary for 
+            each parameter during optimization. The length of the list equals 
+            to the length of **parameterIndexes**.
+        targetFunctions : list[object]
+            A list of callable objects (wrapped functions) whose values shall 
+            be minimized.
+
+        Returns
+        -------
+        tuple
+            A tuple of the following items:
+                - A float value representing the optimization loss.
+                - A list of float values representing the optimized set of \
+                  model parameters. The length of the list equals to \
+                  the length of **parameterIndexes**.
+        """
+        if len(parameterIndexes) == 0:
+            return (self.lossFunction(model, [], [], targetFunctions), [])
+        
+        # Exclude fixed parameters
+        freeParameterIndexes = [i for i, X in enumerate(parameterRanges) 
+                                if min(X) < max(X)]
+        initialParameters = [X if i in freeParameterIndexes 
+                             else min(parameterRanges[i]) 
+                             for i, X in enumerate(initialParameters)]
+        if len(freeParameterIndexes) == 0:
+            return (self.lossFunction(model, initialParameters, 
+                                      parameterIndexes, targetFunctions), 
+                    initialParameters)
+        self.updateModel(model, initialParameters, parameterIndexes)
+        freeParameters = [initialParameters[i] for i in freeParameterIndexes]
+        parameterRanges = [parameterRanges[i] for i in freeParameterIndexes]
+        parameterIndexes = [parameterIndexes[i] for i in freeParameterIndexes]
+        
+        # Global optimization
+        try:
+            result = Optimize.dual_annealing(lambda X: 
+                                             self.lossFunction(
+                                                 model, X, parameterIndexes, 
+                                                 targetFunctions),
+                                             bounds = parameterRanges, 
+                                             x0 = freeParameters, 
+                                             seed = self.seed, 
+                                             maxiter = self.maxIteration, 
+                                             no_local_search = 
+                                             (self.maxLocalSearches < 2), 
+                                             minimizer_kwargs = 
+                                             {'method': 'Nelder-Mead', 
+                                              'options': 
+                                              {'maxiter':self.maxLocalSearches, 
+                                               'disp': self.debugOutput}})
+        except ValueError:
+            return (math.inf, initialParameters)
+        
+        # Update the model with the optimized parameters
+        self.updateModel(model, result['x'], parameterIndexes)
+        
+        # Return the optimization loss and the optimized parameters
+        fittedParameters = initialParameters
+        for i, X in zip(freeParameterIndexes, result['x']):
+            fittedParameters[i] = X
+        return (result['fun'], fittedParameters)

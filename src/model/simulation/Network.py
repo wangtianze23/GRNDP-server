@@ -28,8 +28,8 @@ class Regulation:
             An integer representing the index of the target node of a 
             regulation.
         regulationType : int
-            An integer of either 1 (activation) or -1 (repression) indicating 
-            the type of the regulation.
+            An integer of either 1 (activation), -1 (repression) or 
+            0 (constant) indicating the type of the regulation.
         parameters : list
             The parameters associated with the regulation.
 
@@ -59,8 +59,8 @@ class PairedRegulation:
         targetIndex : int
             The index of the target node of a regulation.
         regulationType : int
-            An integer of either 1 (activation) or -1 (repression) indicating 
-            the type of the regulation.
+            An integer of either 1 (activation), -1 (repression) or 
+            0 (constant) indicating the type of the regulation.
         parameters : list
             The parameters associated with the regulation.
 

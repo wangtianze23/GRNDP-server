@@ -12,6 +12,7 @@ class Hill(BaseRegulation):
     """
     The base class for Hill-styled regulation classes.
     """
+    name = 'Hill'
     parameterIndexes = {
         0: 'y_min', 
         1: 'y_max', 
@@ -74,6 +75,7 @@ class HillA(Hill):
     """
     The class for activating Hill-styled regulation.
     """
+    name = 'HillA'
     def __call__(self, X: list) -> float:
         """
         Overrides BaseRegulation.__call__().
@@ -87,6 +89,7 @@ class HillR(Hill):
     """
     The class for repressive Hill-styled regulation.
     """
+    name = 'HillR'
     parameterIndexes = {
         0: 'y_min', 
         1: 'y_max', 
@@ -164,6 +167,7 @@ class HillAR(Hill):
     """
     The class for activating and repressive Hill-styled regulation.
     """
+    name = 'HillARc'
     parameterIndexes = {
         0: 'y_min', 
         1: 'y_max', 

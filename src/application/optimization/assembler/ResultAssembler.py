@@ -7,12 +7,10 @@ Created on Sat Jan  4 22:03:15 2025
 @author: Tz Wang <wangtianze23@mails.ucas.ac.cn>
 """
 
-from base64 import b64encode
-import tempfile
-from matplotlib.figure import Figure
 from application.optimization.DTO.Network import EdgeParameter
 from application.optimization.DTO.Result import \
-    OptimizedRegulation, OptimizedTarget, VisualizedPath
+    OptimizedRegulation, OptimizedTarget, VisualizedPath, VisualizedDensity
+from infrastructure.plot.StaticPlot import StaticFigure
 import model.optimization.Network
 from model.optimization.Constraint import TargetConstraint
 
@@ -38,20 +36,16 @@ class OptimizedTargetAssembler:
 
 class VisualizedPathAssembler:
     @staticmethod
-    def figureToBase64(figure: Figure) -> str:
-        encodedImage = ''
-        if figure is not None:
-            with tempfile.NamedTemporaryFile('rb') as tempFile:
-                figure.savefig(tempFile.name, format = 'png')
-                encodedImage = b64encode(tempFile.read()).decode('utf-8')
-                tempFile.close()
-        return encodedImage
-
-    @staticmethod
-    def createFromFigure(figure: Figure, 
+    def createFromFigure(figure: StaticFigure, 
                          path: model.optimization.Network.Path) \
                         -> VisualizedPath:
         return VisualizedPath(sourceIndex = path.sourceIndex, 
                               targetIndex = path.targetIndex, 
-                              image = 
-                              VisualizedPathAssembler.figureToBase64(figure))
+                              image = figure.toBase64())
+
+class VisualizedDensityAssembler:
+    @staticmethod
+    def createFromFigure(figure: StaticFigure, 
+                         nodeIndex: int) -> VisualizedPath:
+        return VisualizedDensity(nodeIndex = nodeIndex, 
+                                 image = figure.toBase64())

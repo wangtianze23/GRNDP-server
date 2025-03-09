@@ -93,8 +93,8 @@ class RegulationParameterSpace(ParameterSpace):
         ID : int
             A integer representing the identity of the space.
         regulationType : str
-            A string of either 'activation' or 'repression' indicating 
-            the type of the regulation.
+            A string of either 'activation', 'repression' or 'constant' 
+            indicating the type of the regulation.
         name : str, optional
             The name of the space. The default is an empty string.
         dimension : int, optional
@@ -142,8 +142,8 @@ class DiscreteRegulationParameterSpace(DiscreteSpace,RegulationParameterSpace):
         ID : int
             A integer representing the identity of the space.
         regulationType : str
-            A string of either 'activation' or 'repression' indicating 
-            the type of the regulation.
+            A string of either 'activation', 'repression' or 'constant' 
+            indicating the type of the regulation.
         name : str, optional
             The name of the space. The default is an empty string.
         dimension : int, optional

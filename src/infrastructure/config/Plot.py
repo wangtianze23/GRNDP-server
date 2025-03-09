@@ -20,6 +20,10 @@ class BasePlotConfig:
         -------
         None.
         """
+        self.marginLeft = 0.2
+        self.marginRight = 0.95
+        self.marginBottom = 0.15
+        self.marginTop = 0.95
         self.tickDirection = 'in'
         self.fontSize = 10
         self.fontWeight = 'normal'

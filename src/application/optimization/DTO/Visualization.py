@@ -14,3 +14,9 @@ class PathVisualization(BaseModel):
 
 class VisualizedPath(PathVisualization):
     image: str
+
+class DensityVisulization(BaseModel):
+    nodeIndex: int
+
+class VisualizedDensity(DensityVisulization):
+    image: str

@@ -10,6 +10,7 @@ class BaseRegulation:
     """
     The base class for modeling regulatory interactions among genes.
     """
+    name = ''
     parameterIndexes = {}
     
     @classmethod
@@ -77,6 +78,7 @@ class ConstantRegulation(BaseRegulation):
     """
     The class for regulations of constant output.
     """
+    name = 'constant'
     parameterIndexes = {
         0: 'y'
     }

@@ -7,17 +7,72 @@ Created on Sun Jan  5 16:42:34 2025
 @author: Tz Wang <wangtianze23@mails.ucas.ac.cn>
 """
 
+from base64 import b64encode
+import tempfile
 import matplotlib
 import matplotlib.pyplot
 from matplotlib.figure import Figure
 from infrastructure.config.Plot import BasePlotConfig
 
 
+class StaticFigure:
+    """
+    The container class for static figures.
+    """
+    def __init__(self, figure: Figure):
+        """
+        Initialize a StaticFigure object.
+
+        Parameters
+        ----------
+        figure : Figure
+            A matplotlib.figure.Figure object holding the figure to manipulate.
+
+        Returns
+        -------
+        None.
+        """
+        self.figure = figure
+        self.fileFormat = 'png'
+    
+    def save(self, filename: str):
+        """
+        Save a plot to file.
+
+        Parameters
+        ----------
+        figure : Figure
+            A matplotlib.figure.Figure object holding the plot to save.
+        filename : str
+            A string representing the path of the target file.
+
+        Returns
+        -------
+        None.
+        """
+        self.figure.savefig(filename, format = self.fileFormat)
+    
+    def toBase64(self) -> str:
+        """
+        Convert a plot to a base64 string.
+
+        Returns
+        -------
+        str
+            A string containing the based64-encoded plot after rendering.
+        """
+        encodedImage = ''
+        with tempfile.NamedTemporaryFile('rb') as tempFile:
+            self.figure.savefig(tempFile.name, format = self.fileFormat)
+            encodedImage = b64encode(tempFile.read()).decode('utf-8')
+            tempFile.close()
+        return encodedImage
+
 class BaseStaticPlot:
     """
-    The base class of database of static resource
+    The base class of plotting static figures
     """
-    def __init__(self, config = BasePlotConfig(), name = ''):
+    def __init__(self, config = BasePlotConfig()):
         """
         Initialize a BaseStaticPlot object
         
@@ -34,6 +89,10 @@ class BaseStaticPlot:
         self.config = config
         self.fileFormat = 'png'
         
+        matplotlib.rcParams['figure.subplot.left'] = config.marginLeft
+        matplotlib.rcParams['figure.subplot.right'] = config.marginRight
+        matplotlib.rcParams['figure.subplot.bottom'] = config.marginBottom
+        matplotlib.rcParams['figure.subplot.top'] = config.marginTop
         matplotlib.rcParams['xtick.direction'] = config.tickDirection
         matplotlib.rcParams['ytick.direction'] = config.tickDirection
         matplotlib.rcParams['font.size'] = config.fontSize
@@ -85,7 +144,7 @@ class BaseStaticPlot:
     
     def create(self, rowCount = 1, columnCount = 1, width = 6.4, height = 4.8,
                xRatio = [], yRatio = [], sharedX = False, sharedY = False) \
-              -> Figure:
+              -> StaticFigure:
         """
         Create a new figure of specified layout.
 
@@ -120,34 +179,22 @@ class BaseStaticPlot:
 
         Returns
         -------
-        Figure
-            A matplotlib.figure.Figure object holding the new plot.
+        StaticFigure
+            A StaticFigure object holding the new plot.
         """
         if len(xRatio) == 0:
             xRatio = [1 / columnCount] * columnCount
         if len(yRatio) == 0:
             yRatio = [1 / rowCount] * rowCount
-        return matplotlib.pyplot.subplots(rowCount, columnCount, 
+        figure = matplotlib.pyplot.subplots(rowCount, columnCount, 
                                           figsize = (width, height), 
                                           gridspec_kw = 
                                           {'width_ratios': xRatio, 
                                            'height_ratios': yRatio}, 
                                           sharex = sharedX, 
                                           sharey = sharedY)[0]
-    
-    def save(self, figure: Figure, filename: str):
-        """
-        Save a plot to file.
-
-        Parameters
-        ----------
-        figure : Figure
-            A matplotlib.figure.Figure object holding the plot to save.
-        filename : str
-            A string representing the path of the target file.
-
-        Returns
-        -------
-        None.
-        """
-        figure.savefig(filename, format = self.fileFormat)
+        
+        # Wrap the matplotlib.figure.Figure object
+        figure = StaticFigure(figure)
+        figure.fileFormat = self.fileFormat
+        return figure

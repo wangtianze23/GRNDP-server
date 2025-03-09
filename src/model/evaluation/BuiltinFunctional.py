@@ -6,11 +6,11 @@ Created on Fri Jan  3 20:32:08 2025
 """
 
 import math
-from model.evaluation.Functional import BaseFunctionalTarget
+from model.evaluation.Functional import BaseFunctional
 import scipy.optimize as Optimize
 
 
-class MaximumFunctionalTarget(BaseFunctionalTarget):
+class MaximumFunctional(BaseFunctional):
     """
     The class for evaluating the maximum of a function.
     """
@@ -19,13 +19,13 @@ class MaximumFunctionalTarget(BaseFunctionalTarget):
     def __init__(self, name = 'Maximum', variableCount = 1, 
                  descrption = 'The maximum output with respect to the input'):
         """
-        Initialize a MaximumFunctionalTarget object.
+        Initialize a MaximumFunctional object.
         """
         super().__init__(name, variableCount, descrption)
     
     def __call__(self, function: object) -> float:
         """
-        Overrides BaseFunctionalTarget.__call__().
+        Overrides BaseFunctional.__call__().
         """
         if self.variableCount == 1:
             result = Optimize.minimize_scalar(lambda X: -function((X,)), 
@@ -39,7 +39,7 @@ class MaximumFunctionalTarget(BaseFunctionalTarget):
                                        method = 'L-BFGS-B')
         return result['x'].tolist()
 
-class MinimumFunctionalTarget(BaseFunctionalTarget):
+class MinimumFunctional(BaseFunctional):
     """
     The class for evaluating the minimum of a function.
     """
@@ -48,13 +48,13 @@ class MinimumFunctionalTarget(BaseFunctionalTarget):
     def __init__(self, name = 'Minimum', variableCount = 1, 
                  descrption = 'The minimum output with respect to the input'):
         """
-        Initialize a MinimumFunctionalTarget object.
+        Initialize a MinimumFunctional object.
         """
         super().__init__(name, variableCount, descrption)
     
     def __call__(self, function: object) -> float:
         """
-        Overrides BaseFunctionalTarget.__call__().
+        Overrides BaseFunctional.__call__().
         """
         if self.variableCount == 1:
             result = Optimize.minimize_scalar(lambda X: function((X,)), 
@@ -68,7 +68,7 @@ class MinimumFunctionalTarget(BaseFunctionalTarget):
                                        method = 'L-BFGS-B')
         return result['x'].tolist()
 
-class InverseMaximumFunctionalTarget(MaximumFunctionalTarget):
+class InverseMaximumFunctional(MaximumFunctional):
     """
     The class for evaluating the inverse of maximum of a function.
     """
@@ -78,19 +78,19 @@ class InverseMaximumFunctionalTarget(MaximumFunctionalTarget):
                  descrption = 'The inverse of maximum output with respect to '
                               'the input'):
         """
-        Initialize an InverseMaximumFunctionalTarget object.
+        Initialize an InverseMaximumFunctional object.
         """
         super().__init__(name, variableCount, descrption)
         self.maxValue = 1e10
     
     def __call__(self, function: object) -> float:
         """
-        Overrides MaximumFunctionalTarget.__call__().
+        Overrides MaximumFunctional.__call__().
         """
         value = super().__call__(function)
         return 1 / value if value != 0 else self.maxValue
 
-class InverseMinimumFunctionalTarget(MinimumFunctionalTarget):
+class InverseMinimumFunctional(MinimumFunctional):
     """
     The class for evaluating the inverse of minimum of a function.
     """
@@ -100,19 +100,19 @@ class InverseMinimumFunctionalTarget(MinimumFunctionalTarget):
                  descrption = 'The inverse of minimum output with respect to '
                               'the input'):
         """
-        Initialize an InverseMinimumFunctionalTarget object.
+        Initialize an InverseMinimumFunctional object.
         """
         super().__init__(name, variableCount, descrption)
         self.maxValue = 1e10
     
     def __call__(self, function: object) -> float:
         """
-        Overrides MinimumFunctionalTarget.__call__().
+        Overrides MinimumFunctional.__call__().
         """
         value = super().__call__(function)
         return 1 / value if value != 0 else self.maxValue
 
-class FWHMTarget(BaseFunctionalTarget):
+class FWHMFunctional(BaseFunctional):
     """
     The class for evaluating the full width at half maximum of a function.
     """
@@ -122,13 +122,13 @@ class FWHMTarget(BaseFunctionalTarget):
                  descrption = 'The full width at half maximum output with '
                               'respect to the input'):
         """
-        Initialize a FWHMTarget object.
+        Initialize a FWHMFunctional object.
         """
         super().__init__(name, 1, descrption)
     
     def __call__(self, function: object) -> float:
         """
-        Overrides BaseFunctionalTarget.__call__().
+        Overrides BaseFunctional.__call__().
         """
         result = Optimize.minimize_scalar(lambda X: -function((X,)), 
                                           bounds = self.variableRanges[0], 

@@ -7,13 +7,51 @@ Created on Fri Sep 13 19:25:34 2024
 
 from model.evaluation.FunctionalFactory import BuiltinFunctionalFactory
 from model.optimization.Constraint import RegulationConstraint,TargetConstraint
+from model.optimization.LossFactory import OptimizationLossFactory
+from model.optimization.Target import BuiltinTarget
 from model.optimization.Network import Node, OptimizedRegulation
-from model.optimization.NetworkOptimizer import AcyclicNetworkOptimizer
+from model.optimization.ParameterOptimizer import \
+    BaseNetworkParameterOptimizer, DynamicNetworkParameterOptimizer
 from model.optimization.OptimizerException import \
-    NetworkTypeNotSupportedException, TargetTypeNotSupportedException
+    TargetTypeNotSupportedException
+from model.simulation.DynamicNetwork import BaseDynamicNetwork
 from model.simulation.Network import AcyclicNetwork
 from model.simulation.NetworkFactory import BaseNetworkFactory,PairedRegulation
 
+
+class DynamicSimulationOption:
+    """
+    The container class of options for simulation of system dynamics.
+    """
+    def __init__(self, minNoise = 0.001, relativeNoise = 0.2, 
+                 timeSpan = 24, trajectoryCount = 1000):
+        """
+        Initalize a DynamicSimulationOptions object.
+
+        Parameters
+        ----------
+        minNoise : int or float, optional
+            A numeric value indicating the minimum absolute noise level.
+            The default is 0.001.
+        relativeNoise : int or float, optional
+            A numeric value indicating the relative noise level.
+            The default is 0.2, i.e. a gaussian noise with mean = 0 and 
+            standard deviation = 0.2 * (current value of regulated variable).
+        timeSpan : int or float, optional
+            A numeric value indicating the span of time for simulation.
+            The default is 24.
+        count : int, optional
+            An integer indicating the number of trajectories.
+            The default is 1000.
+
+        Returns
+        -------
+        None.
+        """
+        self.minNoise = abs(minNoise)
+        self.relativeNoise = abs(relativeNoise)
+        self.timeSpan = max(timeSpan, 0)
+        self.trajectoryCount = max(trajectoryCount, 0)
 
 class OptimizationResult:
     """
@@ -58,7 +96,7 @@ class NetworkOptimizer:
         self.debugOutput = False
         self.maxIteration = 100
         self.seed = None
-        self.trajectoryCount = 1000
+        self.simulationOption = DynamicSimulationOption()
     
     def setDebugOutput(self, debugOutput = True):
         """
@@ -110,21 +148,21 @@ class NetworkOptimizer:
         """
         self.seed = seed
     
-    def setTrajectoryCount(self, trajectoryCount = 1000):
+    def setSimulationOption(self, option: DynamicSimulationOption):
         """
-        Set the number of trajectories for simulation of system dynamics.
+        Set the noise level for simulation of system dynamics.
 
         Parameters
         ----------
-        count : int, optional
-            An integer indicating the number of trajectories.
-            The default is 1000.
+        option : DynamicSimulationOption
+            A DynamicSimulationOption object containing the parameters 
+            used for simulating the networks during optimization.
 
         Returns
         -------
         None.
         """
-        self.trajectoryCount = trajectoryCount
+        self.simulationOption = option
     
     def optimizeWithSpaceAndTarget(self, 
                                    nodeList: list[Node], 
@@ -162,7 +200,9 @@ class NetworkOptimizer:
         nodeCount = len(nodeList)
         regulations = [PairedRegulation(edge.sourceIndex, edge.targetIndex, 
                                         1 if edge.regulationType=='activation' 
-                                        else -1, 
+                                        else 
+                                        -1 if edge.regulationType=='repression'
+                                        else 0, 
                                         [min(X) if X is not None else 0 
                                          for X in 
                                          edge.parameterSpace.boundaries])
@@ -170,40 +210,58 @@ class NetworkOptimizer:
         network, parameterMapping = \
             BaseNetworkFactory.createFromPairedRegulations(nodeCount, 
                                                            regulations)
-        if not isinstance(network, AcyclicNetwork):
-            raise NetworkTypeNotSupportedException('cyclic')
+        acyclic = isinstance(network, AcyclicNetwork)
+        if not acyclic:
+            network = BaseDynamicNetwork.fromBaseNetwork(
+                                          network, 
+                                          self.simulationOption.minNoise, 
+                                          self.simulationOption.relativeNoise)
+            network.setSeed(self.seed)
         
         # Check the validity of all targets
         invalidTargets = [X for X in targetList 
-                          if len(X.nodeIndexes) != 2 or 
-                             len(X.space.builtin) == '' or 
-                             X.space.variableCount != 2]
+                          if not isinstance(X.space, BuiltinTarget) or 
+                             X.space.variableCount > 0 and 
+                             X.space.variableCount != len(X.nodeIndexes)]
         if len(invalidTargets) > 0:
             raise TargetTypeNotSupportedException(
                                 ','.join(X.space.name for X in invalidTargets))
         
         # Create wrapped target functions to optimize
-        paths = [network.getPath(X.nodeIndexes[1], X.nodeIndexes[0]) 
-                 for X in targetList]
-        pathFunctions = [lambda X, F = Y: F(X[0]) for Y in paths]
-        targetFunctionals = [BuiltinFunctionalFactory.
-                             createFromBuiltinName(X.space.builtin, 
-                                                   X.valueRanges)
-                             for X in targetList]
-        targetFunctions = [lambda T = X, F = Y: T(F) 
-                           for X, Y in zip(targetFunctionals, pathFunctions)]
+        if acyclic:
+            optimizer = BaseNetworkParameterOptimizer()
+            paths = [network.getPath(X.nodeIndexes[1], X.nodeIndexes[0]) 
+                     for X in targetList]
+            inputFunctions = [lambda X, F = Y: F(X[0]) for Y in paths]
+        else:
+            optimizer = DynamicNetworkParameterOptimizer()
+            initialVariables = [0] * nodeCount
+            inputFunctions = [lambda: 
+                              [Y[X.nodeIndexes[0]] 
+                               for Y in network.evolve(
+                                        initialVariables, 
+                                        self.simulationOption.timeSpan, 
+                                        self.simulationOption.trajectoryCount)]
+                              for X in targetList]
+        lossFunctions = [OptimizationLossFactory.
+                         createFromTargetConstraint(X) for X in targetList]
+        optimizationTargets = [lambda F = X, L = Y: L(F) 
+                               for X, Y in zip(inputFunctions, lossFunctions)]
         
         # Optimize the network
-        optimizer = AcyclicNetworkOptimizer()
         optimizer.setDebugOutput(self.debugOutput)
         optimizer.setMaximumIteration(self.maxIteration)
         optimizer.setSeed(self.seed)
         optimizedRegulations = optimizer.optimize(network, edgeList, 
                                                   parameterMapping, 
-                                                  targetFunctions)
+                                                  optimizationTargets)
         
         # Re-evaluate the optimized target functions
+        targetFunctionals = [BuiltinFunctionalFactory.
+                             createFromBuiltinName(X.space.functionalNames[0], 
+                                                   valueRanges = X.valueRanges)
+                             for X in targetList]
         optimizedTargets = [X(Y) 
-                            for X, Y in zip(targetFunctionals, pathFunctions)]
+                            for X, Y in zip(targetFunctionals, inputFunctions)]
         
         return OptimizationResult(optimizedRegulations, optimizedTargets)

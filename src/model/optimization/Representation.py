@@ -7,14 +7,13 @@ Created on Sun Jan  5 16:48:30 2025
 
 import math
 from matplotlib.axes import Axes
-from matplotlib.figure import Figure
 from infrastructure.math.number import floatRange
-from infrastructure.plot.StaticPlot import BaseStaticPlot
+from infrastructure.plot.StaticPlot import BaseStaticPlot, StaticFigure
 
 
 class BaseRepresentation:
     """
-    The base image representation class of simulation classes.
+    The base image representation class of optimization classes.
     """
     def __init__(self, canvas: BaseStaticPlot):
         """
@@ -97,8 +96,24 @@ class BaseRepresentation:
         self.xRange = (minX, maxX)
         self.yRange = (minY, maxY)
     
+    def setSampleCount(self, sampleCount: int):
+        """
+        Set the number of samples to be used for visualization.
+
+        Parameters
+        ----------
+        sampleCount : int
+            The number of samples for probability density estimation on 
+            each dimension.
+
+        Returns
+        -------
+        None.
+        """
+        self.sampleCount = sampleCount
+    
     def correlation(self, predicted: list, measured: list, 
-                    color = '#1F77B4', append = None) -> Figure:
+                    color = '#1F77B4', append = None) -> StaticFigure:
         """
         Draw a scatter plot showing the correlation between the predicted 
         and the measured targets.
@@ -121,15 +136,15 @@ class BaseRepresentation:
             A string indicating the color of all data points. 
             The default is None, i.e. the default color ('#1F77B4') will 
             be used.
-        append : Figure or NoneType
-            A Figure object to which the plot is appended, or None if a new 
-            plot should be created.
+        append : StaticFigure or NoneType
+            A StaticFigure object to which the plot is appended, or None 
+            if a new plot should be created.
             The default is None.
 
         Returns
         -------
-        Figure
-            A matplotlib.figure.Figure object that holds the scatter plot.
+        StaticFigure
+            A StaticFigure object that holds the scatter plot.
         """
         # Exclude infinite values
         masks = [math.isfinite(X) and math.isfinite(Y) 
@@ -142,7 +157,7 @@ class BaseRepresentation:
             figure = self.canvas.create(width = 4.8, height = 4.8)
         else:
             figure = append
-        axes = figure.gca()
+        axes = figure.figure.gca()
         axes.set_aspect('auto' if self.autoAspectRatio else self.aspectRatio)
         
         # Set the axis scale
@@ -167,7 +182,7 @@ class BaseRepresentation:
         return figure
     
     def curve(self, model: object, label = None, curveColor = '#1F77B4', 
-              append = None) -> Figure:
+              append = None) -> StaticFigure:
         """
         Draw a scatter plot showing the correlation between the features  
         and the targets, plus a fitting curve from a model.
@@ -192,15 +207,15 @@ class BaseRepresentation:
 
         Returns
         -------
-        Figure
-            A matplotlib.figure.Figure object that holds the plot.
+        StaticFigure
+            A StaticFigure object that holds the line plot.
         """
         # Create a new plot
         if append is None:
             figure = self.canvas.create(width = 4.8, height = 4.8)
         else:
             figure = append
-        axes = figure.gca()
+        axes = figure.figure.gca()
         oldXRange = axes.get_xlim()
         
         # Set the axis scale

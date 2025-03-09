@@ -10,6 +10,7 @@ from model.simulation.HillRegulationFactory import HillRegulationFactory
 from model.simulation.Network import \
     Regulation, PairedRegulation, NetworkParameterIndex, ParameterMapping, \
     BaseNetwork, AcyclicNetwork
+from model.simulation.Regulation import ConstantRegulation
 
 
 class BaseNetworkFactory:
@@ -50,19 +51,21 @@ class BaseNetworkFactory:
         
         # Add regulations to the network
         for regulation in regulations:
+            if regulation.regulationType == 0:
+                regulationObject = ConstantRegulation(regulation.parameters[0])
+            else:
+                regulationObject = HillRegulationFactory.createFromParameters(
+                                                    regulation.regulationType, 
+                                                    regulation.parameters)
             network.setRegulation(regulation.sourceIndexes, 
-                                  regulation.targetIndex, 
-                                  HillRegulationFactory.createFromParameters(
-                                                  regulation.regulationType, 
-                                                  regulation.parameters))
+                                  regulation.targetIndex, regulationObject)
         
         return network
     
     @staticmethod
     def createFromPairedRegulations(nodeCount: int, 
                                     regulations: list[PairedRegulation]) \
-                                   -> (BaseNetwork, 
-                                       list[list[NetworkParameterIndex]]):
+                                   -> (BaseNetwork, list[ParameterMapping]):
         """
         Construct a BaseNetwork object from paried regulation parameters.
 
@@ -94,10 +97,9 @@ class BaseNetworkFactory:
         indexMatrix = [[None] * nodeCount for i in range(0, nodeCount)]
         regulationMatrix = [[None] * nodeCount for i in range(0, nodeCount)]
         for i, regulation in enumerate(regulations):
-            if regulation.regulationType == 0:
-                continue
-            connectionMatrix[regulation.targetIndex][regulation.sourceIndex] = \
-                                    1 if regulation.regulationType > 0 else -1
+            connectionMatrix[regulation.targetIndex][regulation.sourceIndex] =\
+                                    1 if regulation.regulationType > 0 else \
+                                    -1 if regulation.regulationType < 0 else 0
             indexMatrix[regulation.targetIndex][regulation.sourceIndex] = i
             regulationMatrix[regulation.targetIndex][regulation.sourceIndex] =\
                                                                     regulation
@@ -113,6 +115,17 @@ class BaseNetworkFactory:
         # Assign parameters to pairwise regulatory relationships
         parameterIndexMapping = [None] * len(regulations)
         for i, connections in enumerate(connectionMatrix):
+            # Add constant regulations
+            sourceIndexes = [j for j, X in enumerate(connections) 
+                             if indexMatrix[i][j] is not None and X == 0]
+            for j in sourceIndexes:
+                regulation = ConstantRegulation(regulationMatrix[i][j].
+                                                parameters[0])
+                network.setRegulation((j,), i, regulation)
+                parameterIndexMapping[indexMatrix[i][j]] = \
+                    ParameterMapping([0], [NetworkParameterIndex((j,), i, 0)])
+            
+            # Add non-constant regulations
             sourceIndexes = [j for j, X in enumerate(connections) if X != 0]
             while len(sourceIndexes) > 0:
                 activationIndexes = [k for k in sourceIndexes 
@@ -126,7 +139,8 @@ class BaseNetworkFactory:
                                                        regulationMatrix[i][j].
                                                        parameters) 
                                   for j in subsetIndexes]
-                    parameterIndexes = [X.parameterIndexes for X in components]
+                    parameterIndexes = [list(X.parameterIndexes.keys()) 
+                                        for X in components]
                     regulation, newParameterIndexes = \
                         HillRegulationFactory.createFromCombination(components)
                 else:
@@ -137,8 +151,9 @@ class BaseNetworkFactory:
                     regulation = HillRegulationFactory.createFromParameters(
                                             [connections[j]], 
                                             regulationMatrix[i][j].parameters)
-                    parameterIndexes = [regulation.parameterIndexes]
-                    newParameterIndexes = [regulation.parameterIndexes.keys()]
+                    parameterIndexes = [list(regulation.
+                                             parameterIndexes.keys())]
+                    newParameterIndexes = parameterIndexes
                     subsetIndexes = (j,)
                 network.setRegulation(subsetIndexes, i, regulation)
                 for j, indexes, newIndexes in \
