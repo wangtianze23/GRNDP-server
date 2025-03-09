@@ -140,25 +140,12 @@ class NetworkOptimization:
                                                   visualizedPathList = [], 
                                                   visualizedDensityList = []))
         
-        # Visualize paths in the optimized network
+        # Set up visualizers for paths and densities in the optimized network
         representator = PathRepresentation(self.canvas)
-        visualizedResult = [representator.
-                            response(option.nodeList, result.regulations, 
-                                     Path(X.sourceIndex, X.targetIndex)) 
-                            for X in option.visualizedPathList]
-        
-        # Visualize probability density in the optimized network
-        representator = DensityRepresentation(self.canvas)
-        representator.setSampleCount(option.optimizationOption.trajectoryCount)
-        representator.setSamplingTime(option.optimizationOption.timeSpan)
-        visualizedResult = [representator.
-                            density(option.nodeList, result.regulations, 
-                                    X.nodeIndex, 
-                                    minNoise = 
-                                    option.optimizationOption.minNoise, 
-                                    relativeNoise = 
-                                    option.optimizationOption.relativeNoise) 
-                            for X in option.visualizedDensityList]
+        representator2 = DensityRepresentation(self.canvas)
+        representator2.setSampleCount(option.optimizationOption.
+                                      trajectoryCount)
+        representator2.setSamplingTime(option.optimizationOption.timeSpan)
         
         # Assemble the optimization result
         resultBody = OptimizationResultBody(
@@ -170,14 +157,22 @@ class NetworkOptimization:
                          createFromConstraint(targetSpaces[i], i, X) 
                          for i, X in enumerate(result.targets)], 
                         visualizedPathList = 
-                        [VisualizedPathAssembler.createFromFigure(X, Y) 
-                         for X, Y in zip(visualizedResult, 
-                                         option.visualizedPathList)], 
+                        [VisualizedPathAssembler.createFromFigure(
+                            representator.
+                            response(option.nodeList, result.regulations, 
+                                     Path(X.sourceIndex, X.targetIndex)), 
+                            X) for X in option.visualizedPathList], 
                         visualizedDensityList = 
-                        [VisualizedDensityAssembler.
-                         createFromFigure(X, Y.nodeIndex) 
-                         for X, Y in zip(visualizedResult, 
-                                         option.visualizedDensityList)])
+                        [VisualizedDensityAssembler.createFromFigure(
+                            representator2.
+                            density(option.nodeList, result.regulations, 
+                                    X.nodeIndex, 
+                                    minNoise = 
+                                    option.optimizationOption.minNoise, 
+                                    relativeNoise = 
+                                    option.optimizationOption.relativeNoise), 
+                            X.nodeIndex)
+                         for X in option.visualizedDensityList])
         return OptimizationResult(message = result.message, 
                                 processId = option.processId, 
                                 data = resultBody)

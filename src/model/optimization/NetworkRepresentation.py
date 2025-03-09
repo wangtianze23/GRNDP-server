@@ -104,6 +104,7 @@ class DensityRepresentation(BaseRepresentation):
         self.samplingTime = 24
         self.xLogScale = True
         self.yLogScale = False
+        self.yRange = (0, None)
         self.xLabel = 'Transcription factor'
         self.yLabel = 'Density'
     
@@ -182,13 +183,20 @@ class DensityRepresentation(BaseRepresentation):
         samples = [X[nodeIndex] 
                    for X in network.evolve(initialValues, 
                                            self.samplingTime, sampleCount)]
-        if self.xLogScale:
+        
+        # Check for the sampled values
+        self.xRange = xRange
+        self.xLabel = nodeList[nodeIndex].name
+        if all(X == samples[0] for X in samples):
+            # Acyclic network: no density representation
+            return super().curve(lambda X: [0] * len(X))
+        
+        # Re-sample using Gaussian kernels
+        if self.xLogScale and any(X > 0 for X in samples):
             minValue = min(X for X in samples if X > 0)
             kernel = Stats.gaussian_kde([max(X, minValue) for X in samples])
         else:
             kernel = Stats.gaussian_kde(samples)
         
         # Plot the response curve
-        self.xRange = xRange
-        self.xLabel = nodeList[nodeIndex].name
         return super().curve(lambda X: [kernel(Y) for Y in X])
