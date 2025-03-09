@@ -36,6 +36,7 @@ class BaseNetworkParameterOptimizer:
         self.debugOutput = False
         self.maxIteration = 10
         self.maxIteration2 = 20
+        self.maxLocalSearches = 5
         self.relativeStepSize = 0.2
         self.neighbourCount = 5
         self.seed = 0
@@ -220,8 +221,11 @@ class BaseNetworkParameterOptimizer:
                                        take_step = stepMaker, 
                                        disp = self.debugOutput, 
                                        minimizer_kwargs = 
-                                       {'method': 'L-BFGS-B', 
-                                        'bounds': parameterRanges})
+                                       {'method': 'Nelder-Mead', 
+                                        'bounds': parameterRanges, 
+                                        'options': 
+                                        {'maxiter': self.maxLocalSearches, 
+                                         'disp': self.debugOutput}})
         
         # Update the model with the optimized parameters
         self.updateModel(model, result['x'], parameterIndexes)
