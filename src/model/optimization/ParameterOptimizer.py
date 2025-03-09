@@ -524,7 +524,7 @@ class DynamicNetworkParameterOptimizer(BaseNetworkParameterOptimizer):
         super().__init__()
         self.maxIteration = 5
         self.maxIteration2 = 10
-        self.maxLocalSearches = 3
+        self.maxLocalSearches = 1
         self.neighbourCount = 10
     
     def optimizeOnce(self, model: BaseDynamicNetwork, 
@@ -592,6 +592,8 @@ class DynamicNetworkParameterOptimizer(BaseNetworkParameterOptimizer):
                                              x0 = freeParameters, 
                                              seed = self.seed, 
                                              maxiter = self.maxIteration, 
+                                             no_local_search = 
+                                             (self.maxLocalSearches < 2), 
                                              minimizer_kwargs = 
                                              {'method': 'Nelder-Mead', 
                                               'options': 

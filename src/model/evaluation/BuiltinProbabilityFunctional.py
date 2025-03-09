@@ -9,8 +9,8 @@ import math
 import scipy.signal as Signal
 import scipy.stats as Stats
 from infrastructure.math.number import floatRange
-from infrastructure.math.signal import FWHM, fitGaussianPeaks
-from model.evaluation.Functional import BaseFunctional, CompoundFunctional
+from infrastructure.math.signal import FWHM
+from model.evaluation.Functional import BaseFunctional
 
 
 class ProbabilityFunctionalMixin:
@@ -176,8 +176,18 @@ class PopulationRatioFunctional(ProbabilityFunctionalMixin, BaseFunctional):
             # Unimodal distribution
             return math.inf
         
-        peak1 = min(peaks[:2])
-        peak2 = max(peaks[:2])
-        _, peakHeights = fitGaussianPeaks(distribution, [peak1, peak2])
+        # Split the distribution at the minima between two maxima
+        peak1 = min(peaks)
+        peak2 = max(peaks)
+        cutoffIndex = peak1
+        minima = math.inf
+        for i in range(peak1 + 1, peak2):
+            if distribution[i] < minima:
+                cutoffIndex = i
+                minima = distribution[i]
+        cutoff = math.exp(logMinValue + \
+                          cutoffIndex * (logMaxValue - logMinValue) / count)
         
-        return peakHeights[0] / peakHeights[1]
+        # Calculate the ratio of sample number between two groups
+        subpopulationCount = sum(1 if X <= cutoff else 0 for X in values)
+        return subpopulationCount / (len(values) - subpopulationCount)

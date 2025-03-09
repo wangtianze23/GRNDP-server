@@ -191,4 +191,4 @@ class DensityRepresentation(BaseRepresentation):
         # Plot the response curve
         self.xRange = xRange
         self.xLabel = nodeList[nodeIndex].name
-        return super().curve(lambda X: [kernel(Y) / sampleCount for Y in X])
+        return super().curve(lambda X: [kernel(Y) for Y in X])
