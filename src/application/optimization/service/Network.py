@@ -10,15 +10,15 @@ Created on Fri Sep 13 12:42:26 2024
 from application.optimization.assembler.SpaceAssembler import \
     RegulationParameterSpaceAssembler, TargetSpaceAssembler
 from application.optimization.assembler.ResultAssembler import \
-    OptimizedRegulationAssembler, OptimizedTargetAssembler, \
-    VisualizedPathAssembler, VisualizedDensityAssembler
-from application.optimization.DTO.Option import OptimizationOption
+    ResultBodyAssembler
+from application.optimization.DTO.Option import \
+    OptimizationOption, OptimizerOption
 from application.optimization.DTO.Resource import OptimizationResource
 from application.optimization.DTO.Result import \
-    OptimizationResult, OptimizationResultBody
+    OptimizedRegulation, OptimizationResult, OptimizationResultBody
 from infrastructure.config.Service import BaseServiceConfig
 from infrastructure.database.StaticResource import RegulatorDB, TargetDB
-from infrastructure.plot.StaticPlot import BaseStaticPlot
+from infrastructure.plot.StaticPlot import BaseStaticPlot, StaticFigure
 from model.optimization.Constraint import \
     ParameterConstraint, RegulationConstraint, TargetConstraint
 from model.optimization.Network import Node, Path
@@ -135,44 +135,87 @@ class NetworkOptimization:
             return OptimizationResult(
                     message = 'Optimization failed due to "{}"'.format(str(e)),
                     processId = option.processId, 
-                    data = OptimizationResultBody(optimizedEdgeList = [],
-                                                  optimizedTargetList = [], 
-                                                  visualizedPathList = [], 
-                                                  visualizedDensityList = []))
+                    data = ResultBodyAssembler.createEmptyObject())
         
-        # Set up visualizers for paths and densities in the optimized network
-        representator = PathRepresentation(self.canvas)
-        representator2 = DensityRepresentation(self.canvas)
-        representator2.setSampleCount(option.optimizationOption.
-                                      trajectoryCount)
-        representator2.setSamplingTime(option.optimizationOption.timeSpan)
+        # Visualize the optimized network
+        visualizedPaths = [self.visualizePath(nodes, result.regulations, 
+                                              X.sourceIndex, X.targetIndex) 
+                           for X in option.visualizedPathList]
+        visualizedDensities = [self.visualizeDensity(nodes, result.regulations,
+                                                     X.nodeIndex, 
+                                                     option.optimizationOption)
+                           for X in option.visualizedDensityList]
         
         # Assemble the optimization result
-        resultBody = OptimizationResultBody(
-                        optimizedEdgeList = 
-                        [OptimizedRegulationAssembler.createFromModel(X, i) 
-                         for i, X in enumerate(result.regulations)],
-                        optimizedTargetList = 
-                        [OptimizedTargetAssembler.
-                         createFromConstraint(targetSpaces[i], i, X) 
-                         for i, X in enumerate(result.targets)], 
-                        visualizedPathList = 
-                        [VisualizedPathAssembler.createFromFigure(
-                            representator.
-                            response(option.nodeList, result.regulations, 
-                                     Path(X.sourceIndex, X.targetIndex)), 
-                            X) for X in option.visualizedPathList], 
-                        visualizedDensityList = 
-                        [VisualizedDensityAssembler.createFromFigure(
-                            representator2.
-                            density(option.nodeList, result.regulations, 
-                                    X.nodeIndex, 
-                                    minNoise = 
-                                    option.optimizationOption.minNoise, 
-                                    relativeNoise = 
-                                    option.optimizationOption.relativeNoise), 
-                            X.nodeIndex)
-                         for X in option.visualizedDensityList])
+        resultBody = ResultBodyAssembler.createFromOptimizationResult(
+                                        option, targetSpaces, result, 
+                                        visualizedPaths, visualizedDensities)
         return OptimizationResult(message = result.message, 
-                                processId = option.processId, 
-                                data = resultBody)
+                                  processId = option.processId, 
+                                  data = resultBody)
+    
+    def visualizePath(self, nodeList: list[Node], 
+                      regulationList: list[OptimizedRegulation], 
+                      sourceIndex: int, targetIndex: int) -> StaticFigure:
+        """
+        Visualize the response function along a path in an optimized network.
+
+        Parameters
+        ----------
+        nodeList : list[Node]
+            A list of Node objects representing the nodes in the network.
+        regulationList : list[OptimizedRegulation]
+            A list of OptimizedRegulation objects representing the optimized 
+            regulation (edges) in the network.
+        sourceIndex : int
+            An integer indicating the index of the source node of a path to 
+            visualize.
+        targetIndex : int
+            An integer indicating the index of the target node of a path to 
+            visualize.
+
+        Returns
+        -------
+        StaticFigure
+            A StaticFigure object holding the visualized path.
+        """
+        # Set up visualizers for the optimized network
+        representator = PathRepresentation(self.canvas)
+        
+        return representator.response(nodeList, regulationList, 
+                                      Path(sourceIndex, targetIndex))
+    
+    def visualizeDensity(self, nodeList: list[Node], 
+                         regulationList: list[OptimizedRegulation], 
+                         nodeIndex: int, option: OptimizerOption) \
+                        -> StaticFigure:
+        """
+        Visualize the probability density of the value of a node in 
+        an optimized network.
+
+        Parameters
+        ----------
+        nodeList : list[Node]
+            A list of Node objects representing the nodes in the network.
+        regulationList : list[OptimizedRegulation]
+            A list of OptimizedRegulation objects representing the optimized 
+            regulation (edges) in the network.
+        nodeIndex : int
+            An integer indicating the index of the node to visualize.
+        option : OptimizerOption
+            An OptimizerOption object holding the additional parameters used 
+            during optimization.
+
+        Returns
+        -------
+        StaticFigure
+            A StaticFigure object holding the visualized probability density.
+        """
+        # Set up visualizers for the optimized network
+        representator = DensityRepresentation(self.canvas)
+        representator.setSampleCount(option.optimizationOption.trajectoryCount)
+        representator.setSamplingTime(option.optimizationOption.timeSpan)
+        
+        return representator.density(nodeList, regulationList, nodeIndex, 
+                                     minNoise = option.minNoise, 
+                                     relativeNoise = option.relativeNoise)

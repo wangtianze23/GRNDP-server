@@ -8,11 +8,14 @@ Created on Sat Jan  4 22:03:15 2025
 """
 
 from application.optimization.DTO.Network import EdgeParameter
+from application.optimization.DTO.Option import OptimizationOption
 from application.optimization.DTO.Result import \
-    OptimizedRegulation, OptimizedTarget, VisualizedPath, VisualizedDensity
+    OptimizedRegulation, OptimizedTarget, VisualizedPath, VisualizedDensity, \
+    OptimizationResultBody
 from infrastructure.plot.StaticPlot import StaticFigure
-import model.optimization.Network
 from model.optimization.Constraint import TargetConstraint
+import model.optimization.Network
+from model.optimization.Optimizer import OptimizationResult
 
 
 class OptimizedRegulationAssembler:
@@ -49,3 +52,37 @@ class VisualizedDensityAssembler:
                          nodeIndex: int) -> VisualizedPath:
         return VisualizedDensity(nodeIndex = nodeIndex, 
                                  image = figure.toBase64())
+
+class ResultBodyAssembler:
+    @staticmethod
+    def createEmptyObject() -> OptimizationResultBody:
+        return OptimizationResultBody(optimizedEdgeList = [],
+                                      optimizedTargetList = [], 
+                                      visualizedPathList = [], 
+                                      visualizedDensityList = [])
+    
+    @staticmethod
+    def createFromOptimizationResult(option: OptimizationOption, 
+                                     targetSpaces: list[TargetConstraint], 
+                                     result: OptimizationResult, 
+                                     visualizedPaths: list[StaticFigure], 
+                                     visualizedDensities: list[StaticFigure]) \
+                                    -> OptimizationResultBody:
+        # Assemble the result body
+        return OptimizationResultBody(
+                        optimizedEdgeList = 
+                        [OptimizedRegulationAssembler.createFromModel(X, i) 
+                         for i, X in enumerate(result.regulations)],
+                        optimizedTargetList = 
+                        [OptimizedTargetAssembler.
+                         createFromConstraint(targetSpaces[i], i, X) 
+                         for i, X in enumerate(result.targets)], 
+                        visualizedPathList = 
+                        [VisualizedPathAssembler.createFromFigure(X, Y) 
+                         for X, Y in zip(visualizedPaths, 
+                                         option.visualizedPathList)], 
+                        visualizedDensityList = 
+                        [VisualizedDensityAssembler.
+                         createFromFigure(X, Y.nodeIndex)
+                         for X, Y in zip(visualizedDensities, 
+                                         option.visualizedDensityList)])
