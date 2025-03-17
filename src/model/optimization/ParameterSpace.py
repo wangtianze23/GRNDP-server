@@ -31,27 +31,27 @@ class ParameterSpace:
         """
         self.name = name
         self.dimension = dimension
-
-class DiscreteSpace:
-    """
-    The mixin class for discrete parameter space classes.
-    """
-    def __contains__(self, value: list) -> bool:
+    
+    def __contains__(self, value: tuple) -> bool:
         """
         Check if a vector value exists in the space.
 
         Parameters
         ----------
-        value : list
-            A list of numeric values representing a vector.
+        value : tuple
+            A tuple of numeric values representing a vector.
 
         Returns
         -------
         bool
             Whether the specified vector value exists in the space.
         """
-        raise NotImplementedError(DiscreteSpace.__contains__)
-    
+        raise NotImplementedError(ParameterSpace.__contains__)
+
+class DiscreteSpace:
+    """
+    The mixin class for discrete parameter space classes.
+    """
     def __getitem__(self, index: int) -> float:
         """
         Get a parameter by its index.
@@ -91,7 +91,7 @@ class RegulationParameterSpace(ParameterSpace):
         Parameters
         ----------
         ID : int
-            A integer representing the identity of the space.
+            An integer representing the identity of the space.
         regulationType : str
             A string of either 'activation', 'repression' or 'constant' 
             indicating the type of the regulation.
@@ -126,6 +126,12 @@ class RegulationParameterSpace(ParameterSpace):
         self.dimensionNames = dimensionNames or [''] * dimension
         self.boundaries = boundaries or [(-math.inf,math.inf)] * dimension
         self.source = source
+    
+    def __contains__(self, item: tuple) -> bool:
+        """
+        Overrides ParameterSpace.__getitem__().
+        """
+        return all(Y[0] <= X <= Y[1] for X, Y in zip(item,self.boundaries))
 
 class DiscreteRegulationParameterSpace(DiscreteSpace,RegulationParameterSpace):
     """
@@ -178,9 +184,9 @@ class DiscreteRegulationParameterSpace(DiscreteSpace,RegulationParameterSpace):
         self.values = values
         self.valueIDs = valueIDs
     
-    def __contains__(self, item: list) -> bool:
+    def __contains__(self, item: tuple) -> bool:
         """
-        Overrides DiscreteSpace.__getitem__().
+        Overrides RegulationParameterSpace.__contains__().
         """
         if self.values is not None:
             return item in self.values
