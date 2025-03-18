@@ -15,12 +15,13 @@ from application.optimization.DTO.Option import \
     OptimizationOption, OptimizerOption
 from application.optimization.DTO.Resource import OptimizationResource
 from application.optimization.DTO.Result import \
-    OptimizedRegulation, OptimizationResult, OptimizationResultBody
+    OptimizedRegulation, OptimizationResult
 from infrastructure.config.Service import BaseServiceConfig
 from infrastructure.database.StaticResource import RegulatorDB, TargetDB
 from infrastructure.plot.StaticPlot import BaseStaticPlot, StaticFigure
 from model.optimization.Constraint import \
     ParameterConstraint, RegulationConstraint, TargetConstraint
+from model.optimization.Generator import RegulationPromoterGenerator
 from model.optimization.Network import Node, Path
 from model.optimization.NetworkRepresentation import \
     PathRepresentation, DensityRepresentation
@@ -29,6 +30,8 @@ from model.optimization.Optimizer import \
 from model.optimization.OptimizerException import OptimizationFailedException
 from model.optimization.ParameterSpaceRepository import \
     RegulationParameterSpaceRepository
+from model.optimization.SequenceSpaceRepository import \
+    RegulationSequenceSpaceRepository
 from model.optimization.TargetRepository import BaseTargetRepository
 
 
@@ -53,7 +56,7 @@ class NetworkOptimization:
         None.
         """
         self.config = config
-        self.parameterDatabase = RegulatorDB(config.staticResource)
+        self.regulatorDatabase = RegulatorDB(config.staticResource)
         self.targetDatabase = TargetDB(config.staticResource)
         self.canvas = BaseStaticPlot(config.plotConfiguration)
     
@@ -67,7 +70,7 @@ class NetworkOptimization:
             An OptimizationResource object containing the resource for 
             launching a round of optimization.
         """
-        repository = RegulationParameterSpaceRepository(self.parameterDatabase)
+        repository = RegulationParameterSpaceRepository(self.regulatorDatabase)
         parameterSpaces = [RegulationParameterSpaceAssembler.createFromModel(X)
                            for X in repository.retrieveAll()]
         
@@ -97,15 +100,15 @@ class NetworkOptimization:
         # Collect the resources for optimization
         nodes = [Node(X.index, X.name, X.entityType) for X in option.nodeList]
         
-        repository = RegulationParameterSpaceRepository(self.parameterDatabase)
-        parameterSpaces = \
+        repository = RegulationParameterSpaceRepository(self.regulatorDatabase)
+        parameterSpaces = [repository.retrieveByID(edge.optimizationSpaceID) 
+                           for edge in option.edgeList]
+        constraints = \
             [RegulationConstraint(edge.sourceIndex, edge.targetIndex, 
-                                  edge.regulationType, 
-                                  repository.retrieveByID(edge.
-                                                          optimizationSpaceID), 
+                                  edge.regulationType, space, 
                                   [ParameterConstraint(X.index, X.min, X.max) 
                                    for X in edge.optimizationConstraints]) 
-             for edge in option.edgeList]
+             for edge, space in zip(option.edgeList, parameterSpaces)]
         
         repository = BaseTargetRepository(self.targetDatabase)
         targetSpaces = [TargetConstraint(target.nodeIndexes, 
@@ -128,8 +131,7 @@ class NetworkOptimization:
         
         # Run optimization
         try:
-            result = optimizer.optimizeWithSpaceAndTarget(nodes, 
-                                                          parameterSpaces, 
+            result = optimizer.optimizeWithSpaceAndTarget(nodes, constraints, 
                                                           targetSpaces)
         except OptimizationFailedException as e:
             return OptimizationResult(
@@ -146,10 +148,21 @@ class NetworkOptimization:
                                                      option.optimizationOption)
                            for X in option.visualizedDensityList]
         
+        # Generate promoters for the optimized regulations
+        repository = RegulationSequenceSpaceRepository(self.regulatorDatabase)
+        sequenceSpaces = [repository.retrieveByID(edge.optimizationSpaceID) 
+                          for edge in option.edgeList]
+        promoterGenerator = RegulationPromoterGenerator(nodes, 
+                                                        result.regulations, 
+                                                        parameterSpaces, 
+                                                        sequenceSpaces)
+        promoters = promoterGenerator.generateAll()
+        
         # Assemble the optimization result
         resultBody = ResultBodyAssembler.createFromOptimizationResult(
                                         option, targetSpaces, result, 
-                                        visualizedPaths, visualizedDensities)
+                                        visualizedPaths, visualizedDensities, 
+                                        promoters)
         return OptimizationResult(message = result.message, 
                                   processId = option.processId, 
                                   data = resultBody)

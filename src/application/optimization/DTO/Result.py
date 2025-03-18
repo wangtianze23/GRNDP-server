@@ -8,6 +8,7 @@ Created on Thu Sep 12 20:17:34 2024
 from pydantic import BaseModel
 from application.experiment.DTO.Result import \
     ExperimentResult, ExperimentResultBody
+from application.optimization.DTO.File import ResultFile
 from application.optimization.DTO.Network import EdgeParameter
 from application.optimization.DTO.Visualization import \
     VisualizedPath, VisualizedDensity
@@ -30,6 +31,7 @@ class OptimizationResultBody(ExperimentResultBody):
     optimizedTargetList: list[OptimizedTarget]
     visualizedPathList: list[VisualizedPath]
     visualizedDensityList: list[VisualizedDensity]
+    resultFileList: list[ResultFile]
 
 class OptimizationResult(ExperimentResult):
     data: OptimizationResultBody

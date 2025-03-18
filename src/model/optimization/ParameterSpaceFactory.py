@@ -140,6 +140,8 @@ class GenerativeRegulationParameterSpaceFactory:
         space.dimension = len(dimensionNames)
         space.dimensionNames = dimensionNames
         if len(parameters) > 0:
+            space.valueIDs = list(parameters.keys())
+            space.values = list(parameters.values())
             space.boundaries = [(min(X[i] for X in parameters.values()), 
                                  max(X[i] for X in parameters.values())) 
                                 for i in range(0, space.dimension)]

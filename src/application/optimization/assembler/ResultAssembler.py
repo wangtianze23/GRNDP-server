@@ -7,12 +7,15 @@ Created on Sat Jan  4 22:03:15 2025
 @author: Tz Wang <wangtianze23@mails.ucas.ac.cn>
 """
 
+from base64 import b64encode
+from application.optimization.DTO.File import ResultFile
 from application.optimization.DTO.Network import EdgeParameter
 from application.optimization.DTO.Option import OptimizationOption
 from application.optimization.DTO.Result import \
     OptimizedRegulation, OptimizedTarget, VisualizedPath, VisualizedDensity, \
     OptimizationResultBody
 from infrastructure.plot.StaticPlot import StaticFigure
+from model.assemblage.Promoter import RegulationPromoterCollection
 from model.optimization.Constraint import TargetConstraint
 import model.optimization.Network
 from model.optimization.Optimizer import OptimizationResult
@@ -53,20 +56,32 @@ class VisualizedDensityAssembler:
         return VisualizedDensity(nodeIndex = nodeIndex, 
                                  image = figure.toBase64())
 
+class ResultFileAssembler:
+    @staticmethod
+    def createFromPromoters(promoters: RegulationPromoterCollection) \
+                           -> ResultFile:
+        return ResultFile(name = 'promoter.gb', fileType = 'promoters', 
+                          mimeType = 'chemical/x-genbank', 
+                          contentBase64 = 
+                          b64encode(promoters.toGenbank().
+                                    encode('utf-8')).decode('utf-8'))
+
 class ResultBodyAssembler:
     @staticmethod
     def createEmptyObject() -> OptimizationResultBody:
         return OptimizationResultBody(optimizedEdgeList = [],
                                       optimizedTargetList = [], 
                                       visualizedPathList = [], 
-                                      visualizedDensityList = [])
+                                      visualizedDensityList = [], 
+                                      resultFileList = [])
     
     @staticmethod
     def createFromOptimizationResult(option: OptimizationOption, 
                                      targetSpaces: list[TargetConstraint], 
                                      result: OptimizationResult, 
                                      visualizedPaths: list[StaticFigure], 
-                                     visualizedDensities: list[StaticFigure]) \
+                                     visualizedDensities: list[StaticFigure], 
+                                     promoters: RegulationPromoterCollection) \
                                     -> OptimizationResultBody:
         # Assemble the result body
         return OptimizationResultBody(
@@ -85,4 +100,6 @@ class ResultBodyAssembler:
                         [VisualizedDensityAssembler.
                          createFromFigure(X, Y.nodeIndex)
                          for X, Y in zip(visualizedDensities, 
-                                         option.visualizedDensityList)])
+                                         option.visualizedDensityList)], 
+                        resultFileList = [ResultFileAssembler.
+                                          createFromPromoters(promoters)])
