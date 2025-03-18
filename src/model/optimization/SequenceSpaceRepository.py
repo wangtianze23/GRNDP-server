@@ -129,9 +129,12 @@ class RegulationSequenceSpaceRepository:
         
         if metaInformation['optimizationType'] in ('dataset', 'generator'):
             sequenceFilename = os.path.join(dataDir, self.mainFilename)
-            space = RegulationSequenceSpaceFactory.\
+            if os.path.exists(sequenceFilename):
+                space = RegulationSequenceSpaceFactory.\
                                         createFromFile(sequenceFilename, 
                                                        metaInformation['ID'])
+            else:
+                space = RegulationSequenceSpace(metaInformation['ID'])
         else:
             space = RegulationSequenceSpace(metaInformation['ID'])
         space.name = metaInformation['name']

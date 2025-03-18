@@ -226,8 +226,8 @@ class NetworkOptimization:
         """
         # Set up visualizers for the optimized network
         representator = DensityRepresentation(self.canvas)
-        representator.setSampleCount(option.optimizationOption.trajectoryCount)
-        representator.setSamplingTime(option.optimizationOption.timeSpan)
+        representator.setSampleCount(option.trajectoryCount)
+        representator.setSamplingTime(option.timeSpan)
         
         return representator.density(nodeList, regulationList, nodeIndex, 
                                      minNoise = option.minNoise, 

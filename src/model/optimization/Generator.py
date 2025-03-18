@@ -64,10 +64,11 @@ class RegulationPromoterGenerator:
 
         Returns
         -------
-        FeaturedPromoter
+        FeaturedPromoter or NoneType
             A FeaturedPromoter object containing the sequence and parameters 
             associated with a promoter that can be used to implement 
-            the regulatory relationship on the specified node.
+            the regulatory relationship on the specified node, or NoneType 
+            if no promoter shall be used.
         """
         # Get regulations associated with the specified node
         regulationIndexes = [i for i, X in enumerate(self.regulations) 
@@ -83,6 +84,8 @@ class RegulationPromoterGenerator:
                 generatorType = 'HillA'
             elif regulations[0].regulationType == 'repression':
                 generatorType = 'HillR'
+            elif regulations[0].regulationType == 'constant':
+                return None
         elif len(regulations) == 2:
             regulationIndexes = \
                 [next(iter(j for i, j in enumerate(regulationIndexes) 
@@ -127,8 +130,15 @@ class RegulationPromoterGenerator:
             that can be used to implement the regulatory relationships in 
             the network.
         """
+        # Get all nodes associated with at least one regulation
         nodeIndexes = sorted(set(X.targetIndex for X in self.regulations))
         promoters = [self.generate(i) for i in nodeIndexes]
+        
+        # Exlucde nodes without a promoter
+        nodeIndexes = [X for X, Y in zip(nodeIndexes, promoters) 
+                       if Y is not None]
+        promoters = [X for X in promoters if X is not None]
+        
         return RegulationPromoterCollection(promoters, nodeIndexes, 
                                             ['P_{}'.format(self.nodes[i].name) 
                                              for i in nodeIndexes])
