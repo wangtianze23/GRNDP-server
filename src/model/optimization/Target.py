@@ -70,5 +70,6 @@ class BuiltinTarget(BaseTarget):
         -------
         None.
         """
-        super().__init__(ID, variableCount, description = description)
+        super().__init__(ID, variableCount, name = name, 
+                         description = description)
         self.functionalNames = functionalNames
