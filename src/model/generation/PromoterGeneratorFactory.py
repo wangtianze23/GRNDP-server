@@ -128,7 +128,7 @@ class BaseHillPromoterGeneratorFactory:
                                                for X in sequenceLists[0]]), 
                       PromoterRegionGenerator('regulatory', 
                                                parameterLists[0].dimensions, 
-                                               parameterLists[0].values(), 
+                                               parameterLists[0].values, 
                                                [X.subregions[2] 
                                                 for X in sequenceLists[0]], 
                                                [X.ID 
