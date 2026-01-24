@@ -22,7 +22,7 @@ class TargetTypeNotSupportedException(OptimizationFailedException):
         self.actual = providedType
     
     def __str__(self) -> str:
-        return 'The network of type "{}" is not supported'.format(self.actual)
+        return 'The target of type "{}" is not supported'.format(self.actual)
 
 class ParameterRangeEmptyException(OptimizationFailedException):
     def __init__(self, parameterName: str, spaceName = ''):
