@@ -24,7 +24,7 @@ class TargetNotFoundException(Exception):
         Parameters
         ----------
         spaceID : int
-            The ideneity of a target.
+            The identity of a target.
         databaseName : str, optional
             The name of the queried database. The default is ''.
 
@@ -68,14 +68,14 @@ class BaseTargetRepository:
         """
         self.database = database
     
-    def exists(self, ID: str) -> bool:
+    def exists(self, ID: int) -> bool:
         """
         Determine if a space of given ID already exists in the database
         
         Parameters
         ----------
-        ID : str
-            The ID of the space to search.
+        ID : int
+            The identity of the space to search.
         
         Returns
         -------

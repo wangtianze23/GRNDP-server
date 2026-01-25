@@ -27,7 +27,7 @@ class SpaceNotFoundException(Exception):
         Parameters
         ----------
         spaceID : int
-            The ideneity of a space.
+            The identity of a space.
         databaseName : str, optional
             The name of the queried database. The default is ''.
 
@@ -72,14 +72,14 @@ class RegulationParameterSpaceRepository:
         """
         self.database = database
     
-    def exists(self, ID: str) -> bool:
+    def exists(self, ID: int) -> bool:
         """
         Determine if a space of given ID already exists in the database
         
         Parameters
         ----------
         ID : str
-            The ID of the space to search.
+            The identity of the space to search.
         
         Returns
         -------

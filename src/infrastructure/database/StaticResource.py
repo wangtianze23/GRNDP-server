@@ -34,60 +34,60 @@ class BaseStaticResource:
         if not os.path.exists(self.path):
             os.mkdir(self.path)
     
-    def dataDirectory(self, datasetID: int) -> str:
+    def dataDirectory(self, ID: int) -> str:
         """
-        Get the base directory of a dataset
+        Get the base directory of an entity
 
         Parameters
         ----------
-        datasetID : str
-            The identify of the target dataset.
+        ID : int
+            The identify of the target entity.
 
         Returns
         -------
         str
-            The path to the target dataset.
+            The path to the target entity.
         """
-        if datasetID > 0:
-            return os.path.join(self.path, str(datasetID))
+        if ID > 0:
+            return os.path.join(self.path, str(ID))
         else:
             return ''
     
     def count(self) -> int:
         """
-        Count all datasets.
+        Count all entities.
 
         Returns
         -------
         int
-            Total number of datasets in the database.
+            Total number of entities in the database.
         """
-        return len(os.listdir(self.path))
+        return len(X for X in os.listdir(self.path) if X.isdigit())
         
-    def idList(self) -> list[str]:
+    def idList(self) -> list[int]:
         """
-        Get a list of IDs of all datasets
+        Get a list of IDs of all entities
 
         Returns
         -------
-        list
-            A list of strings representing IDs of all datasets.
+        list[int]
+            A list of integers representing the IDs of all entities.
         """
-        return [int(X) for X in os.listdir(self.path) if X.isdigit()]
+        return sorted(int(X) for X in os.listdir(self.path) if X.isdigit())
     
-    def exists(self, ID: str) -> bool:
+    def exists(self, ID: int) -> bool:
         """
-        Determine if a dataset of given ID already exists in the database
+        Determine if an entity of given ID already exists in the database
 
         Parameters
         ----------
-        ID : str
-            The ID of the dataset to search.
+        ID : int
+            The identity of the entity to search.
 
         Returns
         -------
         bool
-            Whether the specified dataset exists.
+            Whether the specified entity exists.
         """
         return ID in self.idList() 
 
