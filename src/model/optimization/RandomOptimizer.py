@@ -5,6 +5,7 @@ Created on Wed Jan  8 20:51:56 2025
 @author: Tz Wang <wangtianze23@mails.ucas.ac.cn>
 """
 
+import math
 import random
 
 
@@ -12,20 +13,23 @@ class RandomBoundedStep:
     """
     The class for making random bounded steps in global optimization.
     """
-    def __init__(self, maxStep = 1, stepBoundaries = [], seed = None):
+    def __init__(self, stepBoundaries: list[tuple], maxStep = 1, 
+                 valueBoundaries: list[tuple] = None, seed: int = None):
         """
         Initialize a RandomBoundedStep object.
 
         Parameters
         ----------
+        stepBoundaries : list[tuple]
+            A list of tuples of numeric values indicating the boundary of step 
+            for each parameter.
         maxStep : float, optional
             A numeric value indicating the maximum absolute step size. 
             The default is 1.
-        stepBoundaries : list, optional
-            A list of tuples indicating the boundary of step for each 
-            parameter. 
-            The default is an empty list, i.e. the step size for all 
-            parameters is unbounded.
+        valueBoundaries : list[tuple] or NoneType, optional
+            A list of tuples of numeric values indicating the boundary for  
+            each parameter, or None if all parameters are unbounded.
+            The default is None.
         seed : int or None, optional
             An integer fed to the RNG, or None if no fixed seed is used.
             The default is None.
@@ -35,10 +39,13 @@ class RandomBoundedStep:
         None.
 
         """
-        self.maxStep = maxStep
+        self.maxStep = abs(maxStep)
         self.stepBoundaries = [(max(-self.maxStep, min(Y)), 
                                 min(self.maxStep, max(Y))) 
                                for Y in stepBoundaries]
+        if valueBoundaries is None:
+            valueBoundaries = [(-math.inf,math.inf)] * len(self.stepBoundaries)
+        self.valueBoundaries = valueBoundaries
         self.seed = seed
         self.stepCount = 0
 
@@ -72,5 +79,5 @@ class RandomBoundedStep:
                           (len(values) - boundaryCount)
         else:
             boundaries = self.stepBoundaries[:len(values)]
-        return [X + random.uniform(Y[0], Y[1]) 
-                for X, Y in zip(values, boundaries)]
+        return [max(min(X + random.uniform(Y[0], Y[1]), Z[1]), Z[0]) 
+                for X, Y, Z in zip(values, boundaries, self.valueBoundaries)]

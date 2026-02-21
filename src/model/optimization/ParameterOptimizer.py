@@ -209,10 +209,10 @@ class BaseNetworkParameterOptimizer:
         # Determine the step size for updating parameters
         stepSizes = [(max(X) - min(X)) * self.relativeStepSize 
                      for X in parameterRanges]
-        stepMaker = RandomBoundedStep(seed = self.seed, 
-                                      maxStep = max(stepSizes), 
-                                      stepBoundaries = [(-X, X) 
-                                                        for X in stepSizes])
+        stepMaker = RandomBoundedStep([(-X, X) for X in stepSizes], 
+                                      valueBoundaries = parameterRanges, 
+                                      seed = self.seed, 
+                                      maxStep = max(stepSizes))
         
         # Global optimization
         result = Optimize.basinhopping(lambda X: 
@@ -374,7 +374,7 @@ class BaseNetworkParameterOptimizer:
         losses = [X[0] for X in result]
         minLoss = min(losses)
         if math.isinf(minLoss):
-            return (None, math.inf, None)
+            return (None, None, math.inf)
         minLossIndex = losses.index(minLoss)
         return (result[minLossIndex][1], minLossIndex, minLoss)
     
@@ -544,10 +544,7 @@ class BaseNetworkParameterOptimizer:
                     else:
                         continuousParameterMapping[(i, j)] = mapping[j]
         
-        # Determine the initial values and ranges for continuous parameters
-        initialContinuousParameters = \
-            [geometricMean(constraints[i].parameterSpace.boundaries[j]) 
-             for (i, j) in continuousParameterMapping.keys()]
+        # Determine the ranges and initial values for continuous parameters
         continuousParameterRanges = \
             [intersectRanges([constraints[i].parameterSpace.boundaries[j], 
                               *(X.toTuple() 
@@ -561,15 +558,15 @@ class BaseNetworkParameterOptimizer:
             raise ParameterRangeEmptyException(
                             constraints[i].parameterSpace.dimensionNames[j], 
                             constraints[i].parameterSpace.name)
+        initialContinuousParameters = [geometricMean(X) 
+                                       for X in continuousParameterRanges]
         
-        # Determine the initial values and ranges for discrete parameters
+        # Determine the ranges and initial values for discrete parameters
         discreteParameterGroups = [[tuple(Z[j] for j in Y.keys()) 
                                     for Z in X.parameterSpace.values] 
                                    if len(Y) > 0 else [] 
                                    for X, Y in zip(constraints, 
                                                    discreteParameterMappings)]
-        initialDiscreteParameters = [centroid(X) 
-                                     for X in discreteParameterGroups]
         discreteParameterRanges = []
         for i, constraint in enumerate(constraints):
             parameterGroups = discreteParameterGroups[i]
@@ -598,6 +595,8 @@ class BaseNetworkParameterOptimizer:
             if len(discreteParameterGroups[i]) == 0:
                 raise ParameterRangeEmptyException(constraint.parameterSpace.
                                                    name)
+        initialDiscreteParameters = [centroid(X) 
+                                     for X in discreteParameterGroups]
         
         # Optimize the discrete parameters group-by-group
         continuousParameters = initialContinuousParameters

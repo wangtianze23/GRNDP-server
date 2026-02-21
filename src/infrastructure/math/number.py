@@ -115,7 +115,10 @@ def centroid(values: list[tuple]) -> tuple:
     """
     if len(values) == 0:
         return tuple()
+    sample = values[-1]
     return tuple(math.prod(X[i] for X in values) ** (1 / len(values)) 
+                 if any(X[i] != sample[i] for X in values) 
+                 else sample[i] 
                  for i in range(0, len(values[0])))
 
 def geometricMean(values: list, minValue = 1e-10) -> float:
@@ -137,14 +140,16 @@ def geometricMean(values: list, minValue = 1e-10) -> float:
     """
     validValues = [X for X in values if X > minValue]
     if len(validValues) > 1:
-        return math.prod(validValues) ** (1 / len(validValues))
+        if any(X != validValues[-1] for X in validValues):
+            return math.prod(validValues) ** (1 / len(validValues))
+        return validValues[-1]
     if len(validValues) == 1:
         if len(values) > 1:
             return math.sqrt(validValues[0] * minValue)
         return validValues[0]
     return minValue
 
-def kNN(value: tuple, neighbours: list[tuple], k = 1) -> list[tuple]:
+def kNN(value: tuple, neighbours: list[tuple], k = 1) -> list[tuple[int]]:
     """
     Find the k-nearest neighbours (KNN) of a vector among a list of vectors.
 
@@ -163,8 +168,8 @@ def kNN(value: tuple, neighbours: list[tuple], k = 1) -> list[tuple]:
 
     Returns
     -------
-    list[tuple]
-        A list of tuple of numeric values representing the **k** nearest 
+    list[tuple[int]]
+        A list of tuple of integers representing the index of **k** nearest 
         neighbours of **value** among **neighbours**. The length of the list 
         equals to **k**, and the length of the tuple equals to the number of 
         dimensions.
