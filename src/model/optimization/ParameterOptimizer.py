@@ -7,6 +7,7 @@ Created on Sun Jan  5 21:05:03 2025
 
 from collections import OrderedDict
 import math
+import multiprocessing
 import scipy.optimize as Optimize
 from infrastructure.math.number import centroid, geometricMean, kNN
 from infrastructure.math.number import intersectRange, intersectRanges
@@ -14,6 +15,8 @@ from model.optimization.Constraint import RegulationConstraint
 from model.optimization.Network import Parameter, OptimizedRegulation
 from model.optimization.OptimizerException import \
     ParameterNotConvergedException, ParameterRangeEmptyException
+from model.optimization.OptimizerTarget import \
+    DynamicNetworkSimulationInput, NetworkPathInput, OptimizationLossTarget
 from model.optimization.ParameterSpace import DiscreteRegulationParameterSpace
 from model.optimization.RandomOptimizer import RandomBoundedStep
 from model.simulation.Network import \
@@ -37,6 +40,7 @@ class BaseNetworkParameterOptimizer:
         self.maxIteration = 10
         self.maxIteration2 = 20
         self.maxLocalSearches = 5
+        self.maxProcess = -1
         self.relativeStepSize = 0.2
         self.neighbourCount = 5
         self.seed = 0
@@ -119,7 +123,7 @@ class BaseNetworkParameterOptimizer:
     @staticmethod
     def lossFunction(model: BaseNetwork, parameters: list[float], 
                      parameterIndexes: list[NetworkParameterIndex], 
-                     targetFunctions: list[object]) -> float:
+                     targetFunctions: list[OptimizationLossTarget]) -> float:
         """
         Calculate the optimization loss on a model and a list of targets.
 
@@ -133,8 +137,8 @@ class BaseNetworkParameterOptimizer:
         parameterIndexes : list[NetworkParameterIndex]
             A list of NetworkParameterIndex objects representing the index of 
             parameters in a network.
-        targetFunctions : list[object]
-            A list of callable objects (wrapped functions) to evaluate after 
+        targetFunctions : list[OptimizationLossTarget]
+            A list of OptimizationLossTarget objects to evaluate after 
             the model has been updated.
 
         Returns
@@ -150,8 +154,8 @@ class BaseNetworkParameterOptimizer:
     def optimizeOnce(self, model: BaseNetwork, 
                      parameterIndexes: list[NetworkParameterIndex], 
                      initialParameters: list[float], 
-                     parameterRanges: list[tuple], 
-                     targetFunctions: list[object]) -> tuple:
+                     parameterRanges: list[tuple[float]], 
+                     targetFunctions: list[OptimizationLossTarget]) -> tuple:
         """
         Run a round of global optimization (minimization) of a list of targets 
         with respect to a given set of model parameters.
@@ -167,13 +171,13 @@ class BaseNetworkParameterOptimizer:
             A list of numeric values representing the intial guess for each 
             parameter before optimization. The length of the list equals to 
             the length of **parameterIndexes**.
-        parameterRanges : list[tuple]
+        parameterRanges : list[tuple[float]]
             A list of tuple of (float, float) representing the boundary for 
             each parameter during optimization. The length of the list equals 
             to the length of **parameterIndexes**.
-        targetFunctions : list[object]
-            A list of callable objects (wrapped functions) whose values shall 
-            be minimized.
+        targetFunctions : list[OptimizationLossTarget]
+            A list of OptimizationLossTarget objects whose evaluated values 
+            shall be minimized.
 
         Returns
         -------
@@ -236,17 +240,214 @@ class BaseNetworkParameterOptimizer:
             fittedParameters[i] = X
         return (result['fun'], fittedParameters)
     
+    def optimizeOnceWorker(self, model: BaseNetwork, 
+                           fixedParameters: tuple[float], 
+                           parameterIndexes: list[NetworkParameterIndex], 
+                           initialParameters: list[float], 
+                           parameterRanges: list[tuple[float]], 
+                           targetFunctions: list[OptimizationLossTarget]) \
+                          -> tuple:
+        """
+        The worker function capable of parallely running 
+        **BaseNetworkParameterOptimizer.optimizeOnce**.
+
+        Parameters
+        ----------
+        fixedParameters : tuple[float]
+            A tuple of numeric values representing the list of parameters 
+            fixed during optimization; for debug purpose only.
+        ...
+            See **BaseNetworkParameterOptimizer.optimizeOnce** for details 
+            about other arguments.
+
+        Returns
+        -------
+        tuple
+            See **BaseNetworkParameterOptimizer.optimizeOnce** for details 
+            about the return value.
+        """
+        result = self.optimizeOnce(model, parameterIndexes, initialParameters, 
+                                   parameterRanges, targetFunctions)
+        if self.debugOutput:
+            print('  Loss {} with parameter {}'.
+                  format(result[0], fixedParameters))
+        return result
+    
+    def optimizeDiscreteGroup(self, model: BaseNetwork, 
+                              discreteParameterGroup: list[tuple[float]], 
+                              continuousParameterIndexes: 
+                                  list[NetworkParameterIndex], 
+                              discreteParameterIndexes: 
+                                  list[NetworkParameterIndex], 
+                              initialContinuousParameters: list[float], 
+                              continuousParameterRanges: list[tuple[float]], 
+                              targetFunctions: list[OptimizationLossTarget]) \
+                             -> tuple:
+        """
+        Run global optimization (minimization) on a group of discrete 
+        parameters combined with a common set of continuous parameters.
+
+        Parameters
+        ----------
+        model : BaseNetwork
+            A BaseNetwork object representing the network to optimize.
+        discreteParameterGroup : list[tuple[float]]
+            A list of tuples of float values representing a group of 
+            discrete parameters to choose from. The length of the list equals 
+            to the number of choices, and the length of the tuple equals to 
+            the number of discrete parameter (i.e. dimension) in each group.
+        continuousParameterIndexes : list[NetworkParameterIndex]
+            A list of NetworkParameterIndex objects representing the index of 
+            continuous parameters in a network to optimize.
+        discreteParameterIndexes : list[NetworkParameterIndex]
+            A list of NetworkParameterIndex objects representing the index of 
+            discrete parameters in a network to optimize.
+        initialContinuousParameters : list[float]
+            A list of numeric values representing the intial guess for each 
+            continuous parameter before optimization. The length of the list 
+            equals to the length of **continuousParameterIndexes**.
+        continuousParameterRanges : list[tuple[float]]
+            A list of tuple of (float, float) representing the boundary for 
+            each continuous parameter during optimization. The length of 
+            the list equals to the length of **continuousParameterIndexes**.
+        targetFunctions : list[OptimizationLossTarget]
+            A list of OptimizationLossTarget objects whose evaluated values 
+            shall be minimized.
+
+        Returns
+        -------
+        tuple
+            A tuple of the following items:
+                - A list of numeric values indicating the optimized continuous 
+                  parameters that (when combined with the optimized discrete 
+                  parameter group) yields the lowest loss, or None if 
+                  optimization failed.
+                - An integer indicating the index of the optimal discrete 
+                  parameter group that yields the lowest loss, or None if 
+                  optimization failed.
+                - A float indicating the minimized loss value.
+        """
+        # Duplicate the model and fill with different discrete parameters
+        newModels = []
+        for parameters in discreteParameterGroup:
+            newModel = model.clone()
+            self.updateModel(newModel, parameters, discreteParameterIndexes)
+            newModels.append(newModel)
+        
+        # Duplicate also the target functions
+        newTargetFunctions = []
+        for newModel in newModels:
+            functions = []
+            for targetFunction in targetFunctions:
+                newTargetFunction = targetFunction.clone()
+                inputFunction = newTargetFunction.inputFunction
+                if isinstance(inputFunction, DynamicNetworkSimulationInput):
+                    inputFunction.network = newModel
+                elif isinstance(inputFunction, NetworkPathInput):
+                    inputFunction.path.setNetwork(newModel)
+                functions.append(newTargetFunction)
+            newTargetFunctions.append(functions)
+            
+        # Optimize the models parallelly using multiprocessing
+        taskCount = len(discreteParameterGroup)
+        workerCount = self.maxProcess
+        if workerCount < 1:
+            workerCount = multiprocessing.cpu_count()
+        if workerCount > 1:
+            workers = multiprocessing.Pool(workerCount)
+            result = \
+                workers.starmap(BaseNetworkParameterOptimizer.optimizeOnceWorker, 
+                                zip([self] * taskCount, newModels, 
+                                    discreteParameterGroup, 
+                                    [continuousParameterIndexes] * taskCount, 
+                                    [initialContinuousParameters]* taskCount, 
+                                    [continuousParameterRanges] * taskCount, 
+                                    newTargetFunctions))
+        else:
+            # No multiprocessing needed
+            result = [self.optimizeOnceWorker(X, Y, continuousParameterIndexes,
+                                              initialContinuousParameters, 
+                                              continuousParameterRanges, Z)
+                      for X, Y, Z in zip(newModels, discreteParameterGroup, 
+                                         newTargetFunctions)]
+        
+        losses = [X[0] for X in result]
+        minLoss = min(losses)
+        if math.isinf(minLoss):
+            return (None, math.inf, None)
+        minLossIndex = losses.index(minLoss)
+        return (result[minLossIndex][1], minLossIndex, minLoss)
+    
     def optimizeClusters(self, model: BaseNetwork, 
-                         discreteParameterGroups: list[list[list]], 
+                         discreteParameterGroups: list[list[tuple[float]]], 
                          continuousParameterIndexes: 
                              list[NetworkParameterIndex], 
                          discreteParameterIndexes: 
                              list[list[NetworkParameterIndex]], 
                          initialContinuousParameters: list[float], 
                          initialDiscreteParameters: list[list[float]],
-                         continuousParameterRanges: list[tuple], 
-                         discreteParameterRanges: list[list[tuple]], 
-                         targetFunctions: list[object]) -> tuple:
+                         continuousParameterRanges: list[tuple[float]], 
+                         discreteParameterRanges: list[list[tuple[float]]], 
+                         targetFunctions: list[OptimizationLossTarget]) \
+                        -> list[list[tuple[float]]]:
+        """
+        Run global optimization (minimization) to find a stable cluster of 
+        groups of discrete parameters.
+
+        Parameters
+        ----------
+        model : BaseNetwork
+            A BaseNetwork object representing the network to optimize.
+        discreteParameterGroups : list[list[tuple[float]]]
+            A list of lists of tuples of float values representing multiple 
+            groups of discrete parameters to choose from. The length of 
+            the outer list equals to the number of groups, the length of 
+            the inner list to the number of choices for each group, and 
+            the length of the tuple equals to the number of discrete parameter 
+            (i.e. dimension) in each group.
+        continuousParameterIndexes : list[NetworkParameterIndex]
+            A list of NetworkParameterIndex objects representing the index of 
+            continuous parameters in a network to optimize.
+        discreteParameterIndexes : list[list[NetworkParameterIndex]]
+            A list of lists of NetworkParameterIndex objects representing 
+            the index of discrete parameters in a network to optimize for each 
+            group. The length of the outer list equals to the number of 
+            discrete parameter groups, and the length of the inner list equals 
+            to the number of parameters in each group.
+        initialContinuousParameters : list[float]
+            A list of numeric values representing the intial guess for each 
+            continuous parameter before optimization. The length of the list 
+            equals to the length of **continuousParameterIndexes**.
+        initialDiscreteParameters : list[list[float]]
+            A list of lists of numeric values representing the intial guess 
+            for each discrete parameter in each group before optimization. 
+            The length of the outer list equals to the numer of discrete 
+            parameter groups, and the length of the inner list equals to 
+            the number of parameters in each group.
+        continuousParameterRanges : list[tuple[float]]
+            A list of tuple of (float, float) representing the boundary for 
+            each continuous parameter during optimization. The length of 
+            the list equals to the length of **continuousParameterIndexes**.
+        discreteParameterRanges : list[list[tuple[float]]]
+            A list of lists of tuple of (float, float) representing 
+            the boundary for each discrete parameter in each group during 
+            optimization. The length of the outer list equals to the numer of 
+            discrete parameter groups, and the length of the inner list equals 
+            to the number of parameters in each group.
+        targetFunctions : list[OptimizationLossTarget]
+            A list of OptimizationLossTarget objects whose evaluated values 
+            shall be minimized.
+
+        Returns
+        -------
+        list[list[tuple[float]]]
+            A list of lists of tuples of numeric values representing 
+            the optimized cluster of discrete parameter groups. The length of 
+            the outer list equals to the number of groups, the length of 
+            the inner list equals to the size of cluster for each group, and 
+            the length of the tuple equals to the number of discrete parameter 
+            (i.e. dimension) in each group.
+        """
         # Iteratively refine the centroid of discrete parameters
         discreteParameters = initialDiscreteParameters
         historicalParameters = []
@@ -298,7 +499,8 @@ class BaseNetworkParameterOptimizer:
     def optimize(self, model: BaseNetwork, 
                  constraints: list[RegulationConstraint], 
                  parameterMapping: list[ParameterMapping], 
-                 targetFunctions: list[object]) -> list[OptimizedRegulation]:
+                 targetFunctions: list[OptimizationLossTarget]) \
+                -> list[OptimizedRegulation]:
         """
         Optimize a model with a list of parameter constraints and targets.
 
@@ -315,9 +517,9 @@ class BaseNetworkParameterOptimizer:
             regulation parameters in **constraints** to the actual parameters 
             in **model**. The length of the list equals to the length of 
             **constraints**.
-        targetFunctions : list[object]
-            A list of callable objects (wrapped functions) whose values shall 
-            be minimized.
+        targetFunctions : list[OptimizationLossTarget]
+            A list of OptimizationLossTarget objects whose evaluated values 
+            shall be minimized.
 
         Returns
         -------
@@ -430,33 +632,24 @@ class BaseNetworkParameterOptimizer:
                                       targetFunctions)
             
             # Pick a discrete parameter group to optimize
-            oldLoss = math.inf
             clusterIndex = None
             i = groupIndexes.pop(0)
             clusterIndexes = discreteParameterClusters.pop(0)
             if self.debugOutput:
                 print('Optimizing the parameter group {}:'.format(i))
-            for j in clusterIndexes:
-                self.updateModel(model, discreteParameterGroups[i][j], 
-                                 list(discreteParameterMappings[i].values()))
-                loss, optimizedParameters = \
-                    self.optimizeOnce(model, 
-                                      list(continuousParameterMapping.
-                                           values()),
-                                      initialContinuousParameters, 
-                                      continuousParameterRanges, 
-                                      targetFunctions)
-                if self.debugOutput:
-                    print('  Loss {} with parameter {}'.
-                          format(loss, discreteParameterGroups[i][j]))
-                if loss < oldLoss:
-                    continuousParameters = optimizedParameters
-                    clusterIndex = j
-                    oldLoss = loss
+            optimizedParameters, clusterIndex, loss = \
+                self.optimizeDiscreteGroup(model, discreteParameterGroups[i], 
+                                           list(continuousParameterMapping.
+                                                values()), 
+                                           list(discreteParameterMappings[i].
+                                                values()), 
+                                           initialContinuousParameters, 
+                                           continuousParameterRanges, 
+                                           targetFunctions)
             if clusterIndex is not None:
                 if self.debugOutput:
                     print('  Best parameter found for group {} with loss {}.'.
-                          format(i, oldLoss))
+                          format(i, loss))
                 discreteParameters[i] = \
                     discreteParameterGroups[i][clusterIndex]
                 oldGroupIndexes = groupIndexes.copy()

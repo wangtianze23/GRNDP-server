@@ -10,6 +10,8 @@ from model.optimization.Constraint import RegulationConstraint,TargetConstraint
 from model.optimization.LossFactory import OptimizationLossFactory
 from model.optimization.Target import BuiltinTarget
 from model.optimization.Network import Node, OptimizedRegulation
+from model.optimization.OptimizerTarget import \
+    DynamicNetworkSimulationInput, NetworkPathInput, OptimizationLossTarget
 from model.optimization.ParameterOptimizer import \
     BaseNetworkParameterOptimizer, DynamicNetworkParameterOptimizer
 from model.optimization.OptimizerException import \
@@ -40,7 +42,7 @@ class DynamicSimulationOption:
         timeSpan : int or float, optional
             A numeric value indicating the span of time for simulation.
             The default is 24.
-        count : int, optional
+        trajectoryCount : int, optional
             An integer indicating the number of trajectories.
             The default is 1000.
 
@@ -227,25 +229,23 @@ class NetworkOptimizer:
             raise TargetTypeNotSupportedException(
                                 ','.join(X.space.name for X in invalidTargets))
         
-        # Create wrapped target functions to optimize
+        # Create target functions to optimize
         if acyclic:
             optimizer = BaseNetworkParameterOptimizer()
             paths = [network.getPath(X.nodeIndexes[1], X.nodeIndexes[0]) 
                      for X in targetList]
-            inputFunctions = [lambda X, F = Y: F(X[0]) for Y in paths]
+            inputFunctions = [NetworkPathInput(X) for X in paths]
         else:
             optimizer = DynamicNetworkParameterOptimizer()
-            initialVariables = [0] * nodeCount
-            inputFunctions = [lambda: 
-                              [Y[X.nodeIndexes[0]] 
-                               for Y in network.evolve(
-                                        initialVariables, 
-                                        self.simulationOption.timeSpan, 
-                                        self.simulationOption.trajectoryCount)]
+            initialValues = [0] * nodeCount
+            inputFunctions = [DynamicNetworkSimulationInput(
+                                  network, X.nodeIndexes[0], initialValues, 
+                                  self.simulationOption.timeSpan, 
+                                  self.simulationOption.trajectoryCount) 
                               for X in targetList]
-        lossFunctions = [OptimizationLossFactory.
-                         createFromTargetConstraint(X) for X in targetList]
-        optimizationTargets = [lambda F = X, L = Y: L(F) 
+        lossFunctions = [OptimizationLossFactory.createFromTargetConstraint(X) 
+                         for X in targetList]
+        optimizationTargets = [OptimizationLossTarget(X, Y) 
                                for X, Y in zip(inputFunctions, lossFunctions)]
         
         # Optimize the network

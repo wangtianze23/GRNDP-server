@@ -25,6 +25,17 @@ class BaseRegulation:
         """
         return len(ClassType.parameterIndexes)
     
+    def clone(self) -> "BaseRegulation":
+        """
+        Create a copy of the regulation.
+
+        Returns
+        -------
+        BaseRegulation
+            A new BaseRegulation object.
+        """
+        raise NotImplementedError(BaseRegulation.clone)
+    
     def parameter(self, index: int) -> float:
         """
         Get the value of a parameter associated with the regulation.
@@ -97,6 +108,12 @@ class ConstantRegulation(BaseRegulation):
         None.
         """
         self.y = y
+    
+    def clone(self) -> "ConstantRegulation":
+        """
+        Overrides BaseRegulation.clone().
+        """
+        return ConstantRegulation(self.y)
     
     def parameter(self, index: int) -> float:
         """

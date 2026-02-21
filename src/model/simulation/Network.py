@@ -152,7 +152,22 @@ class BaseNetwork:
         -------
         None.
         """
-        self.regulation = [{} for i in range(0, nodeCount)]
+        self.regulation: list[dict[tuple[int], BaseRegulation]] = \
+            [{} for i in range(0, nodeCount)]
+    
+    def clone(self) -> "BaseNetwork":
+        """
+        Create a copy of the network.
+
+        Returns
+        -------
+        BaseNetwork
+            A new BaseNetwork object.
+        """
+        network = BaseNetwork(len(self.regulation))
+        network.regulation = [{Y: Z.clone() for Y, Z in X.items()} 
+                              for X in self.regulation]
+        return network
     
     def setRegulation(self, sourceIndexes: tuple, targetIndex: int, 
                       regulation: BaseRegulation):
@@ -288,6 +303,33 @@ class NetworkPath:
                                     for indexes, T in 
                                     self.network.regulation[j].items())
         return nodeValues[self.nodeIndexes[-1]]
+    
+    def clone(self) -> "NetworkPath":
+        """
+        Create a copy of the path.
+
+        Returns
+        -------
+        NetworkPath
+            A new NetworkPath object.
+        """
+        return NetworkPath(self.network, self.nodeIndexes)
+    
+    def setNetwork(self, network: BaseNetwork):
+        """
+        Attach to another network.
+
+        Parameters
+        ----------
+        network : BaseNetwork
+            A BaseNetwork object representing the network to attach to.
+
+        Returns
+        -------
+        None.
+        """
+        self.network = network
+        self.nodeValues = [None] * len(network.regulation)
 
 class AcyclicNetwork(BaseNetwork):
     """

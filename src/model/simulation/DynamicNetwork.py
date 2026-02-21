@@ -29,7 +29,10 @@ class BaseDynamicNetwork(BaseNetwork):
         """
         super().__init__(nodeCount)
         self.networkID = TRaNS.newNetwork(nodeCount)
-        self.regulationIDs = [{} for i in range(0, nodeCount)]
+        self.regulationIDs: list[dict[tuple[int], int]] = \
+            [{} for i in range(0, nodeCount)]
+        self.regulationNoises: list[dict[tuple[int], tuple[float]]] = \
+            [{} for i in range(0, nodeCount)]
         self.seed = None
     
     def __del__(self):
@@ -41,6 +44,21 @@ class BaseDynamicNetwork(BaseNetwork):
         None.
         """
         TRaNS.deleteNetwork(self.networkID)
+    
+    def clone(self) -> "BaseDynamicNetwork":
+        """
+        Overrides BaseNetwork.clone().
+        """
+        network = BaseDynamicNetwork(len(self.regulation))
+        for targetIndex, regulations in enumerate(self.regulation):
+            for sourceIndexes, regulation in regulations.items():
+                network.setRegulation(sourceIndexes, targetIndex, regulation)
+                (minNoise, relativeNoise) = \
+                    self.regulationNoises[targetIndex][sourceIndexes]
+                network.setRegulationNoise(sourceIndexes, targetIndex, 
+                                           minNoise, relativeNoise)
+        network.seed = self.seed
+        return network
     
     @classmethod
     def fromBaseNetwork(ClassType: type, base: BaseNetwork, 
@@ -108,6 +126,8 @@ class BaseDynamicNetwork(BaseNetwork):
         if sourceIndexes in self.regulationIDs[targetIndex]:
             regulatorID = self.regulationIDs[targetIndex][sourceIndexes]
             TRaNS.setRegulationNoise(regulatorID, relativeNoise, minNoise)
+            self.regulationNoises[targetIndex][sourceIndexes] = \
+                (relativeNoise, minNoise)
     
     def updateRegulation(self, index: NetworkParameterIndex, parameter: float):
         """

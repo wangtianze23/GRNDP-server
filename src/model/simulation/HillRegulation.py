@@ -76,6 +76,7 @@ class HillA(Hill):
     The class for activating Hill-styled regulation.
     """
     name = 'HillA'
+    
     def __call__(self, X: list) -> float:
         """
         Overrides BaseRegulation.__call__().
@@ -84,6 +85,12 @@ class HillA(Hill):
             return self.y_min + self.y_max / (1 + (self.K / X[0]) ** self.n)
         else:
             return self.y_min
+    
+    def clone(self) -> "HillA":
+        """
+        Overrides BaseRegulation.clone().
+        """
+        return HillA(self.y_min, self.y_max, self.K, self.n)
 
 class HillR(Hill):
     """
@@ -132,6 +139,13 @@ class HillR(Hill):
         self.n = n
         self.activation = activation
         self.correction = correction
+    
+    def clone(self) -> "HillR":
+        """
+        Overrides Hill.clone().
+        """
+        return HillR(self.y_min, self.y_max, self.K, self.n, 
+                     self.activation, self.correction)
     
     def parameter(self, index: int) -> float:
         """
@@ -224,6 +238,13 @@ class HillAR(Hill):
         R = (X[1] / self.K_R) ** self.n_R if X[1] > 0 else 0
         return self.y_min + self.y_max * A * (1 + 1 / self.correction) / \
                (1 + A + (1 + self.correction) * R)
+    
+    def clone(self) -> "HillAR":
+        """
+        Overrides Hill.clone().
+        """
+        return HillAR(self.y_min, self.y_max, self.K_A, self.n_A, 
+                      self.K_R, self.n_R, self.correction)
     
     def parameter(self, index: int) -> float:
         """
