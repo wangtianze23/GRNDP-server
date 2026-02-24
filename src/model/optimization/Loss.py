@@ -6,30 +6,28 @@ Created on Fri Mar  7 09:07:50 2025
 """
 
 import math
-from model.evaluation.Functional import BaseFunctional
+from model.evaluation.Functional import BaseFunctional, JointFunctional
 
 
 class BaseOptimizationLoss:
     """
     The base class for optimization loss classes.
     """
-    def __init__(self, components: list[BaseFunctional]):
+    def __init__(self, functional: BaseFunctional):
         """
         Initialize a BaseOptimizationLoss object.
 
         Parameters
         ----------
-        components : list[BaseFunctional]
-            A list of BaseFunctional objects representing the components 
-            (subtargets) of the optimization loss.
+        functional : BaseFunctional
+            A BaseFunctional object representing the functional used to  
+            evaluate the optimization loss on a given input function.
 
         Returns
         -------
         None.
         """
-        self.components = components
-        self.reduction = sum
-        self.ignoreInvalid = True
+        self.functional = functional
     
     def __call__(self, function: object) -> float:
         """
@@ -46,72 +44,90 @@ class BaseOptimizationLoss:
         float
             A float number representing the current loss.
         """
-        if len(self.components) == 1:
-            return self.components[0](function)
-        return self.reduction([F(function) for F in self.components])
-    
-    def setComponent(self, index: int, functional: BaseFunctional):
-        """
-        Set the component of the optimization loss.
-
-        Parameters
-        ----------
-        index : int
-            An integer indicating the index of the component.
-        functional : BaseFunctional
-            A BaseFunctional object representing the component to calculate.
-
-        Returns
-        -------
-        None.
-        """
-        if index < len(self.components):
-            self.components[index] = functional
+        return self.functional(function)
 
 class MSEOptimizationLoss(BaseOptimizationLoss):
     """
     The class for optimization losses with the mean squared error (MSE) metric.
     """
-    def __init__(self, components: list[BaseFunctional]):
+    def __init__(self, functional: BaseFunctional):
         """
         Initialize a MSEOptimizationLoss object.
 
         Parameters
         ----------
-        components : list[BaseFunctional]
-            A list of BaseFunctional objects representing the components 
-            (subtargets) of the optimization loss.
+        functional : BaseFunctional
+            A BaseFunctional object representing the functional used to  
+            evaluate the optimization loss on a given input function.
 
         Returns
         -------
         None.
         """
-        super().__init__(components)
-        self.expectedValues = [None] * len(components)
+        super().__init__(functional)
+        self.expectedValue = 0
     
-    def setExpectedValue(self, index: int, expectedValue: float):
+    def setExpectedValue(self, expectedValue: float):
         """
         Set the expected value of a component for optimization.
 
         Parameters
         ----------
-        index : int
-            An integer indicating the index of the component.
         expectedValue : int or float
-            A numeric value representing the expected value of a component.
+            A numeric value representing the expected value of the evaluated 
+            functional.
 
         Returns
         -------
         None.
         """
-        if index < len(self.expectedValues):
-            self.expectedValues[index] = expectedValue
+        self.expectedValue = expectedValue
     
     def __call__(self, function: object) -> float:
         """
         Overrides BaseOptimizationLoss.__call__().
         """
-        targetValues = (F(function) for F in self.components)
-        return self.reduction([(X - (Y or 0)) ** 2 
-                               for X,Y in zip(targetValues,self.expectedValues)
-                               if math.isfinite(X)])
+        return (super().__call__(function) - self.expectedValue) ** 2
+
+class CompoundOptimizationLoss(BaseOptimizationLoss):
+    """
+    The class for compound optimization losses.
+    """
+    def __init__(self, components: list[BaseOptimizationLoss], 
+                 jointFunctional: JointFunctional = None, 
+                 reduction: object = None):
+        """
+        Initialize a CompoundOptimizationLoss object.
+
+        Parameters
+        ----------
+        components : list[BaseOptimizationLoss]
+            A list of BaseOptimizationLoss representing the component 
+            losses to evaluate.
+        jointFunctional : JointFunctional or NoneType, optional
+            A JointFunctional object used to associate the component 
+            functionals for joint evaluation, or None if the component 
+            functional shall be evaluated separately.
+            The default is None.
+        reduction : object, optional
+            A callable object to reduce the component losses into a scalar 
+            value, or None if the default reduction method (i.e. production) 
+            shall be used.
+            The default is None.
+
+        Returns
+        -------
+        None.
+        """
+        self.components = components
+        self.jointFunctional = jointFunctional
+        self.reduction = reduction or math.prod
+    
+    def __call__(self, function: object) -> float:
+        """
+        Overrides BaseOptimizationLoss.__call__().
+        """
+        if self.jointFunctional is not None:
+            self.jointFunctional.prepare(function)
+        values = [X(function) for X in self.components]
+        return self.reduction(X for X in values if math.isfinite(X))

@@ -10,45 +10,9 @@ import scipy.signal as Signal
 import scipy.stats as Stats
 from infrastructure.math.number import floatRange
 from infrastructure.math.signal import FWHM
-from model.evaluation.Functional import BaseFunctional
+from model.evaluation.Functional import \
+    BaseFunctional, ProbabilityFunctionalMixin
 
-
-class ProbabilityFunctionalMixin:
-    """
-    Mixin class (interface) for evaluating the probability density of 
-    a target on a function.
-    Attributes required in derived classes:
-        - sampleQueue: list[list[float]]
-    """
-    def appendSamples(self, values: list[float]):
-        """
-        Append a list of samples to the sample queue for evaluation in future.
-
-        Parameters
-        ----------
-        values : list[float]
-            A list of float values representing the sampled values of 
-            the target.
-
-        Returns
-        -------
-        None.
-        """
-        self.sampleQueue.append(values)
-    
-    def takeSamples(self) -> list[float]:
-        """
-        Take a list of samples out of the sample queue for evaluation.
-
-        Returns
-        -------
-        list[float]
-            A list of float values representing a series of sampled values of 
-            the target.
-        """
-        if len(self.sampleQueue) > 0:
-            return self.sampleQueue.pop(0)
-        return []
 
 class InverseLogSpanFunctional(ProbabilityFunctionalMixin, BaseFunctional):
     """

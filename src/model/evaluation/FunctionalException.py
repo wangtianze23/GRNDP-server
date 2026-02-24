@@ -13,3 +13,11 @@ class FunctionalTypeNotSupported(Exception):
     def __str__(self) -> str:
         return 'The functional of type "{}" is not supported'.\
                format(self.actual)
+
+class FunctionalNotCombinable(Exception):
+    def __init__(self, functionalNames: list[str]):
+        self.functionalNames = functionalNames
+    
+    def __str__(self) -> str:
+        return 'The functionals "{}" cannot be combined'.\
+               format(','.join(self.functionalNames))

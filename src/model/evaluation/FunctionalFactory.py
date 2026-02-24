@@ -5,8 +5,9 @@ Created on Sat Jan  4 21:10:29 2025
 @author: Tz Wang <wangtianze23@mails.ucas.ac.cn>
 """
 
-from model.evaluation.Functional import BaseFunctional
-from model.evaluation.FunctionalException import FunctionalTypeNotSupported
+from model.evaluation.Functional import BaseFunctional, JointFunctional
+from model.evaluation.FunctionalException import \
+    FunctionalNotCombinable, FunctionalTypeNotSupported
 from model.evaluation.BuiltinFunctional import \
     MinimumFunctional, MaximumFunctional, \
     InverseMinimumFunctional, InverseMaximumFunctional, FWHMFunctional
@@ -57,3 +58,29 @@ class BuiltinFunctionalFactory:
                 return target
         
         raise FunctionalTypeNotSupported(name)
+    
+    @staticmethod
+    def createFromCombination(components: list[BaseFunctional], 
+                              reduction: object = None) -> JointFunctional:
+        """
+        Construct a JointFunctional from multiple functionals.
+
+        Parameters
+        ----------
+        components : list[BaseFunctional]
+            A list of BaseFunctional objects to combine.
+
+        Returns
+        -------
+        JointFunctional
+            A JointFunctional combined from the specified component 
+            functionals.
+        """
+        variableCounts = [X.variableCount for X in components]
+        if any(X != variableCounts[-1] for X in variableCounts) > 1:
+            raise FunctionalNotCombinable([X.name for X in components])
+        name = '+'.join(X.name for X in components)
+        description = 'Joint of {}'.format(','.join(X.name 
+                                                    for X in components))
+        return JointFunctional(name, variableCounts[0], components, 
+                               descrption = description)

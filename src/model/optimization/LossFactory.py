@@ -6,7 +6,8 @@ Created on Fri Mar  7 10:04:46 2025
 """
 
 from model.evaluation.FunctionalFactory import BuiltinFunctionalFactory
-from model.optimization.Loss import BaseOptimizationLoss, MSEOptimizationLoss
+from model.optimization.Loss import \
+    BaseOptimizationLoss, MSEOptimizationLoss, CompoundOptimizationLoss
 from model.optimization.Constraint import TargetConstraint
 from model.optimization.Target import BuiltinTarget
 
@@ -41,9 +42,22 @@ class OptimizationLossFactory:
                                              valueRanges = 
                                              constraint.valueRanges) 
                        for X in constraint.space.functionalNames]
-        if constraint.expectedValue is None:
-            lossObject = BaseOptimizationLoss(functionals)
+        if len(functionals) > 1:
+            jointFunctional = \
+                BuiltinFunctionalFactory.createFromCombination(functionals)
+            functionals = jointFunctional.components
         else:
-            lossObject = MSEOptimizationLoss(functionals)
-            lossObject.setExpectedValue(0, constraint.expectedValue)
-        return lossObject
+            jointFunctional = None
+        
+        lossObjects = []
+        for i, functional in enumerate(functionals):
+            if constraint.expectedValue is None or i > 0:
+                lossObject = BaseOptimizationLoss(functional)
+            else:
+                lossObject = MSEOptimizationLoss(functional)
+                lossObject.setExpectedValue(constraint.expectedValue)
+            lossObjects.append(lossObject)
+        
+        if len(lossObjects) > 1:
+            return CompoundOptimizationLoss(lossObjects, jointFunctional)
+        return lossObjects[0]

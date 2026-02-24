@@ -19,11 +19,11 @@ class BaseFunctional:
         Parameters
         ----------
         name : str
-            The name of the target.
+            The name of the functional.
         variableCount : int
             The number of variables of the function object.
         descrption : str, optional
-            A string representing the description of the target. 
+            A string representing the description of the functional. 
             The default is an empty string.
 
         Returns
@@ -82,11 +82,11 @@ class DiscreteFunctional(BaseFunctional):
         Parameters
         ----------
         name : str
-            The name of the target.
+            The name of the functional.
         variableCount : int
             The number of variables of the function object.
         descrption : str, optional
-            A string representing the description of the target. 
+            A string representing the description of the functional. 
             The default is an empty string.
         sampleCount : int, optional
             The number of samples for each variable when evaluating the target.
@@ -125,26 +125,63 @@ class DiscreteFunctional(BaseFunctional):
         super().setVaribleRange(index, variableRange)
         self.sampler.setVaribleRange(index, variableRange)
 
-class CompoundFunctional(BaseFunctional):
+class ProbabilityFunctionalMixin:
     """
-    The base class for evaluating a compound target on a function.
+    Mixin class (interface) for evaluating the probability density of 
+    a target on a function.
+    Attributes required in derived classes:
+        - sampleQueue: list[list[float]]
+    """
+    def appendSamples(self, values: list[float]):
+        """
+        Append a list of samples to the sample queue for evaluation in future.
+
+        Parameters
+        ----------
+        values : list[float]
+            A list of float values representing the sampled values of 
+            the target.
+
+        Returns
+        -------
+        None.
+        """
+        self.sampleQueue.append(values)
+    
+    def takeSamples(self) -> list[float]:
+        """
+        Take a list of samples out of the sample queue for evaluation.
+
+        Returns
+        -------
+        list[float]
+            A list of float values representing a series of sampled values of 
+            the target.
+        """
+        if len(self.sampleQueue) > 0:
+            return self.sampleQueue.pop(0)
+        return []
+
+class JointFunctional(BaseFunctional):
+    """
+    The base class for jointly evaluating multiple functionals.
     """
     def __init__(self, name: str, variableCount: int, 
                  components: list[BaseFunctional], descrption = ''):
         """
-        Initialize a CompoundFunctional object.
+        Initialize a JointFunctional object.
 
         Parameters
         ----------
         name : str
-            The name of the target.
+            The name of the functional.
         variableCount : int
             The number of variables of the function object.
         components : list[BaseFunctional]
             A list of BaseFunctional objects representing the component 
-            functionals (subtargets).
+            functionals to evaluate jointly.
         descrption : str, optional
-            A string representing the description of the target. 
+            A string representing the description of the functional. 
             The default is an empty string.
 
         Returns
@@ -153,17 +190,18 @@ class CompoundFunctional(BaseFunctional):
         """
         super().__init__(name, variableCount, descrption = descrption)
         self.components = components
-        self.reduction = sum
+        self.probabilityComponents = \
+            [X for X in components if isinstance(X,ProbabilityFunctionalMixin)]
     
     def __call__(self, function: object) -> float:
         """
         Overrides BaseFunctional.__call__().
         """
-        return self.reduction([X(function) for X in self.components])
+        return self.components[0](function)
     
     def evaluate(self, function: object) -> list[float]:
         """
-        Evaluate the target on a function of defined ranges.
+        Evaluate the functional on a function of defined ranges.
 
         Parameters
         ----------
@@ -176,4 +214,23 @@ class CompoundFunctional(BaseFunctional):
             A list of float numbers representing the target evaluated on 
             each component functional.
         """
+        self.prepare(function)
         return [X(function) for X in self.components]
+    
+    def prepare(self, function: object):
+        """
+        Prepare the component functionals before evaluation.
+
+        Parameters
+        ----------
+        function : object
+            A callable object representing the function to evaluate.
+
+        Returns
+        -------
+        None.
+        """
+        if len(self.probabilityComponents) > 1:
+            values = function()
+            for component in self.probabilityComponents:
+                component.appendSamples(values)
